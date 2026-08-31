@@ -45,7 +45,7 @@ def create_recovery_payment_link(signal: Signal) -> Dict[str, Any]:
         "description": f"Recovery payment for {signal.type.value} ({signal.id})",
         "customer": {
             "name": signal.customer_name,
-            "contact": signal.metadata.get("phone", "9999999999"),
+            "contact": signal.metadata.get("phone", "9123456780"),
             "email": signal.metadata.get("email", "test@example.com"),
         },
         "notify": {"sms": True, "email": True},

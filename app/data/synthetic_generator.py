@@ -35,6 +35,18 @@ def _customer_id(name: str, idx: int) -> str:
     return f"cust_{name.split()[0].lower()}_{idx}"
 
 
+def _phone() -> str:
+    # Realistic-looking Indian mobile number. Razorpay's API rejects
+    # obviously-fake numbers (e.g. all-repeating digits like 9999999999),
+    # so this deliberately avoids that pattern.
+    return f"{random.choice('6789')}{''.join(random.choices('0123456789', k=9))}"
+
+
+def _email(name: str) -> str:
+    first = name.split()[0].lower()
+    return f"{first}.test.{random.randint(100, 999)}@example.com"
+
+
 def generate_batch(n: int = 60, seed: Optional[int] = None) -> List[Signal]:
     if seed is not None:
         random.seed(seed)
@@ -66,6 +78,9 @@ def generate_batch(n: int = 60, seed: Optional[int] = None) -> List[Signal]:
             code = random.choice(RECEIVABLE_CODES)
             due_date = (datetime.utcnow() - timedelta(days=random.randint(3, 45))).date().isoformat()
             meta = {"reason_code": code, "due_date": due_date, "invoice_id": f"inv_{i}"}
+
+        meta["phone"] = _phone()
+        meta["email"] = _email(name)
 
         signals.append(
             Signal(
