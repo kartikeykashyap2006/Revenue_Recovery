@@ -5,6 +5,8 @@ from app import db
 from app.config import settings
 from app.models import Signal, SignalType, RootCause, Diagnosis, Decision
 
+IST_OFFSET = timedelta(hours=5, minutes=30)
+
 # Root causes that must never be auto-retried/auto-contacted -- always escalate
 # to a human for compliance / risk reasons.
 ALWAYS_ESCALATE = {RootCause.BANK_DECLINED_RISK, RootCause.INVOICE_DISPUTE}
@@ -29,16 +31,22 @@ PLAYBOOK_BY_TYPE = {
 }
 
 
-def _in_quiet_hours(now: Optional[datetime] = None) -> bool:
-    now = now or datetime.utcnow()
-    hour = now.hour
+def _in_quiet_hours(now_utc: Optional[datetime] = None) -> bool:
+    """Quiet hours are defined in the customer's local time (IST), not
+    server/UTC time -- outreach at 2am UTC is 7:30am IST (fine), while
+    outreach at 2am IST (20:30 UTC the previous day) is exactly the kind of
+    contact these hours exist to prevent. Converts explicitly rather than
+    relying on server tz."""
+    now_utc = now_utc or datetime.utcnow()
+    ist_now = now_utc + IST_OFFSET
+    hour = ist_now.hour
     start, end = settings.QUIET_HOURS_START, settings.QUIET_HOURS_END
     if start > end:  # wraps past midnight, e.g. 21 -> 9
         return hour >= start or hour < end
     return start <= hour < end
 
 
-def decide(signal: Signal, diagnosis: Diagnosis) -> Decision:
+def decide(signal: Signal, diagnosis: Diagnosis, now_utc: Optional[datetime] = None) -> Decision:
     playbook = PLAYBOOK_BY_TYPE.get(signal.type, "unknown")
     plan = [f"diagnose:{diagnosis.root_cause.value}"]
 
@@ -78,7 +86,7 @@ def decide(signal: Signal, diagnosis: Diagnosis) -> Decision:
             stop_reason="cooldown_active", plan=plan,
         )
 
-    if _in_quiet_hours():
+    if _in_quiet_hours(now_utc):
         return Decision(
             signal_id=signal.id, playbook=playbook, escalate=False, stop=True,
             stop_reason="quiet_hours", plan=plan,

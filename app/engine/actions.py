@@ -35,4 +35,16 @@ def execute(signal: Signal, decision: Decision) -> ActionResult:
             status=ActionStatus.SKIPPED, message_sent=None, amount_recovered=0.0,
             details={"reason": "no_playbook_registered"},
         )
-    return handler(signal, decision)
+
+    # A playbook failure (e.g. Razorpay API hiccup, messaging provider
+    # outage) must never take down the rest of the batch -- it becomes a
+    # FAILED result for that one signal, fully logged, and processing
+    # continues for everyone else.
+    try:
+        return handler(signal, decision)
+    except Exception as exc:
+        return ActionResult(
+            signal_id=signal.id, playbook=decision.playbook, channel=Channel.NONE,
+            status=ActionStatus.FAILED, message_sent=None, amount_recovered=0.0,
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )

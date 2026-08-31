@@ -8,6 +8,7 @@ import argparse
 import json
 import os
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -23,7 +24,21 @@ def main():
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--save-traces", action="store_true", help="Also dump per-signal traces to reports/traces.json")
     parser.add_argument("--reset", action="store_true", help="Clear the audit trail / contact history before running (fresh demo state)")
+    parser.add_argument(
+        "--simulate-time", type=str, default=None,
+        help=(
+            "ISO datetime (UTC) to evaluate quiet-hours against instead of the real "
+            "current time, e.g. 2026-08-31T10:00:00 (=15:30 IST, well outside quiet "
+            "hours). Useful for demos/testing so a real-world quiet-hours window "
+            "doesn't block the whole batch. Compliance logic itself is unchanged -- "
+            "this only controls what 'now' means for that one check."
+        ),
+    )
     args = parser.parse_args()
+
+    simulated_now = datetime.fromisoformat(args.simulate_time) if args.simulate_time else None
+    if simulated_now:
+        print(f"Simulating now_utc={simulated_now.isoformat()} for quiet-hours evaluation.\n")
 
     if args.reset:
         _save_state({k: list(v) for k, v in _DEFAULT_STATE.items()})
@@ -31,7 +46,7 @@ def main():
         print("Reset audit trail and contact history for a fresh run.\n")
 
     signals = generate_batch(n=args.n, seed=args.seed)
-    traces = process_batch(signals)
+    traces = process_batch(signals, now_utc=simulated_now)
     report = generate_report(traces)
 
     print_report(report)

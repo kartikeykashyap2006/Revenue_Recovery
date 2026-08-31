@@ -1,4 +1,5 @@
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
 from app import db
 from app.models import Signal, Trace
@@ -8,7 +9,7 @@ from app.engine.actions import execute
 from app.config import settings
 
 
-def process_signal(signal: Signal) -> Trace:
+def process_signal(signal: Signal, now_utc: Optional[datetime] = None) -> Trace:
     diagnosis = diagnose(signal)
 
     if diagnosis.confidence < 0.5 and settings.USE_LLM_DIAGNOSIS:
@@ -19,7 +20,7 @@ def process_signal(signal: Signal) -> Trace:
 
     db.log_event(signal.id, "diagnosis", diagnosis.__dict__)
 
-    decision = decide(signal, diagnosis)
+    decision = decide(signal, diagnosis, now_utc=now_utc)
     db.log_event(signal.id, "decision", decision.__dict__)
 
     action = execute(signal, decision)
@@ -31,6 +32,6 @@ def process_signal(signal: Signal) -> Trace:
     return Trace(signal=signal, diagnosis=diagnosis, decision=decision, action=action)
 
 
-def process_batch(signals: List[Signal]) -> List[Trace]:
+def process_batch(signals: List[Signal], now_utc: Optional[datetime] = None) -> List[Trace]:
     db.init_db()
-    return [process_signal(s) for s in signals]
+    return [process_signal(s, now_utc=now_utc) for s in signals]
