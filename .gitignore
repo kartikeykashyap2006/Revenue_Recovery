@@ -6,3 +6,7 @@ venv/
 *.db
 .DS_Store
 reports/*.json
+audit_log.jsonl
+state.json
+audit_trail.db
+audit_trail.db-journal
