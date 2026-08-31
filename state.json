@@ -1,0 +1,414 @@
+{
+  "contact_history": [
+    {
+      "customer_id": "cust_arjun_0",
+      "signal_id": "deb4093c",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.805951"
+    },
+    {
+      "customer_id": "cust_vivaan_1",
+      "signal_id": "9159e82b",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.809481"
+    },
+    {
+      "customer_id": "cust_krishna_2",
+      "signal_id": "f2765533",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.813054"
+    },
+    {
+      "customer_id": "cust_riya_3",
+      "signal_id": "2c28f3fb",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.816327"
+    },
+    {
+      "customer_id": "cust_arjun_4",
+      "signal_id": "159b9896",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.819578"
+    },
+    {
+      "customer_id": "cust_sai_5",
+      "signal_id": "122de161",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.823070"
+    },
+    {
+      "customer_id": "cust_aditya_6",
+      "signal_id": "26709cf0",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.826370"
+    },
+    {
+      "customer_id": "cust_ananya_7",
+      "signal_id": "9e42e411",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.829660"
+    },
+    {
+      "customer_id": "cust_ananya_9",
+      "signal_id": "a5357b0a",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.834362"
+    },
+    {
+      "customer_id": "cust_isha_10",
+      "signal_id": "0444b099",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.837724"
+    },
+    {
+      "customer_id": "cust_sneha_12",
+      "signal_id": "b8bf6d1a",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.842442"
+    },
+    {
+      "customer_id": "cust_aditya_13",
+      "signal_id": "e933b914",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.845799"
+    },
+    {
+      "customer_id": "cust_priya_14",
+      "signal_id": "71af28b5",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.849104"
+    },
+    {
+      "customer_id": "cust_vihaan_15",
+      "signal_id": "f7f44377",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.852772"
+    },
+    {
+      "customer_id": "cust_priya_16",
+      "signal_id": "0c4ef5fe",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.856033"
+    },
+    {
+      "customer_id": "cust_arjun_17",
+      "signal_id": "a3cc13fa",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.859337"
+    },
+    {
+      "customer_id": "cust_priya_18",
+      "signal_id": "b9ec8739",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.862777"
+    },
+    {
+      "customer_id": "cust_meera_19",
+      "signal_id": "31cee439",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.866068"
+    },
+    {
+      "customer_id": "cust_diya_20",
+      "signal_id": "87d26617",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.869442"
+    },
+    {
+      "customer_id": "cust_pooja_21",
+      "signal_id": "ace045d6",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.873300"
+    },
+    {
+      "customer_id": "cust_vivaan_22",
+      "signal_id": "3fc6f323",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.876575"
+    },
+    {
+      "customer_id": "cust_sneha_23",
+      "signal_id": "94a2c64b",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.879919"
+    },
+    {
+      "customer_id": "cust_diya_25",
+      "signal_id": "f8c0d61f",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.884478"
+    },
+    {
+      "customer_id": "cust_kavya_26",
+      "signal_id": "65a1abdf",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.887701"
+    },
+    {
+      "customer_id": "cust_meera_27",
+      "signal_id": "f3bbc2c0",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.891264"
+    },
+    {
+      "customer_id": "cust_pooja_28",
+      "signal_id": "4cc0239e",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.895046"
+    },
+    {
+      "customer_id": "cust_ishaan_29",
+      "signal_id": "066fa0c4",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.898483"
+    },
+    {
+      "customer_id": "cust_neha_30",
+      "signal_id": "cbed4ed5",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.902036"
+    },
+    {
+      "customer_id": "cust_aarav_32",
+      "signal_id": "b0410f73",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.906735"
+    },
+    {
+      "customer_id": "cust_meera_34",
+      "signal_id": "3cf7dfb0",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.911648"
+    },
+    {
+      "customer_id": "cust_reyansh_36",
+      "signal_id": "75cc85e6",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.916355"
+    },
+    {
+      "customer_id": "cust_priya_37",
+      "signal_id": "17a43706",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.919859"
+    },
+    {
+      "customer_id": "cust_aarav_38",
+      "signal_id": "e29323dc",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.923279"
+    },
+    {
+      "customer_id": "cust_sneha_39",
+      "signal_id": "9b3cb4bf",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.926773"
+    },
+    {
+      "customer_id": "cust_vihaan_40",
+      "signal_id": "834e76bb",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.930347"
+    },
+    {
+      "customer_id": "cust_arjun_42",
+      "signal_id": "fe18a55e",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.934981"
+    },
+    {
+      "customer_id": "cust_neha_43",
+      "signal_id": "77309c5e",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.938561"
+    },
+    {
+      "customer_id": "cust_neha_44",
+      "signal_id": "7bef9da5",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.942056"
+    },
+    {
+      "customer_id": "cust_arjun_45",
+      "signal_id": "d3770521",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.945508"
+    },
+    {
+      "customer_id": "cust_neha_46",
+      "signal_id": "e7ca2d9b",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.949153"
+    },
+    {
+      "customer_id": "cust_reyansh_47",
+      "signal_id": "011a61aa",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.952625"
+    },
+    {
+      "customer_id": "cust_aditya_48",
+      "signal_id": "1910e5ca",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.956137"
+    },
+    {
+      "customer_id": "cust_ishaan_49",
+      "signal_id": "a45a2d5b",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.959854"
+    },
+    {
+      "customer_id": "cust_priya_51",
+      "signal_id": "76036f2b",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.964558"
+    },
+    {
+      "customer_id": "cust_rohan_52",
+      "signal_id": "93c528dc",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.967987"
+    },
+    {
+      "customer_id": "cust_arjun_53",
+      "signal_id": "9c9a68f9",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.971615"
+    },
+    {
+      "customer_id": "cust_neha_55",
+      "signal_id": "7733cee6",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.976536"
+    },
+    {
+      "customer_id": "cust_aarav_56",
+      "signal_id": "3b30365e",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.980179"
+    },
+    {
+      "customer_id": "cust_sneha_57",
+      "signal_id": "bd636e8a",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.983948"
+    },
+    {
+      "customer_id": "cust_ishaan_58",
+      "signal_id": "97f5fcf8",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.987553"
+    },
+    {
+      "customer_id": "cust_ishaan_60",
+      "signal_id": "f7d313d2",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:39.992504"
+    },
+    {
+      "customer_id": "cust_aditya_61",
+      "signal_id": "96b6406c",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:39.995989"
+    },
+    {
+      "customer_id": "cust_vihaan_62",
+      "signal_id": "c9afb39d",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:39.999856"
+    },
+    {
+      "customer_id": "cust_vivaan_63",
+      "signal_id": "8de7f337",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.003712"
+    },
+    {
+      "customer_id": "cust_sai_64",
+      "signal_id": "1cea3a0f",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.007489"
+    },
+    {
+      "customer_id": "cust_neha_65",
+      "signal_id": "ce926035",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:40.011493"
+    },
+    {
+      "customer_id": "cust_aarav_66",
+      "signal_id": "0a101e5a",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.015252"
+    },
+    {
+      "customer_id": "cust_kavya_67",
+      "signal_id": "42173f08",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.019055"
+    },
+    {
+      "customer_id": "cust_priya_68",
+      "signal_id": "85c5e981",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:40.023022"
+    },
+    {
+      "customer_id": "cust_arjun_69",
+      "signal_id": "a6ebd5a5",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.026854"
+    },
+    {
+      "customer_id": "cust_ishaan_70",
+      "signal_id": "d18362e9",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:40.030655"
+    },
+    {
+      "customer_id": "cust_kavya_72",
+      "signal_id": "35788d1d",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:40.035967"
+    },
+    {
+      "customer_id": "cust_rohan_73",
+      "signal_id": "789458bc",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:40.039787"
+    },
+    {
+      "customer_id": "cust_neha_74",
+      "signal_id": "ed08cef6",
+      "channel": "email",
+      "created_at": "2026-08-31T19:05:40.043609"
+    },
+    {
+      "customer_id": "cust_aditya_75",
+      "signal_id": "9e5e7f2d",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:40.047549"
+    },
+    {
+      "customer_id": "cust_krishna_76",
+      "signal_id": "a0dc583a",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.051386"
+    },
+    {
+      "customer_id": "cust_sneha_78",
+      "signal_id": "4b7cec0a",
+      "channel": "sms",
+      "created_at": "2026-08-31T19:05:40.056674"
+    },
+    {
+      "customer_id": "cust_neha_79",
+      "signal_id": "e172c7db",
+      "channel": "whatsapp",
+      "created_at": "2026-08-31T19:05:40.060582"
+    }
+  ],
+  "opt_outs": [],
+  "promises_to_pay": []
+}
