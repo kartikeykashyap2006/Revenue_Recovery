@@ -32,7 +32,7 @@ def health():
 @app.post("/run-batch")
 def run_batch(n: int = 60, seed: Optional[int] = None):
     signals = generate_batch(n=n, seed=seed)
-    traces = process_batch(signals)
+    traces = process_batch(signals, show_progress=False)
     report = generate_report(traces)
     save_report(report)
     return report

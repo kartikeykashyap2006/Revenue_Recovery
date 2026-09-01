@@ -5,7 +5,7 @@ from app.reporting.batch_report import generate_report
 
 def test_full_batch_runs_without_crashing_and_report_is_consistent():
     signals = generate_batch(n=40, seed=123)
-    traces = process_batch(signals)
+    traces = process_batch(signals, show_progress=False)
     assert len(traces) == 40
 
     report = generate_report(traces)

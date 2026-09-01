@@ -32,6 +32,23 @@ def process_signal(signal: Signal, now_utc: Optional[datetime] = None) -> Trace:
     return Trace(signal=signal, diagnosis=diagnosis, decision=decision, action=action)
 
 
-def process_batch(signals: List[Signal], now_utc: Optional[datetime] = None) -> List[Trace]:
+def process_batch(
+    signals: List[Signal], now_utc: Optional[datetime] = None, show_progress: bool = True
+) -> List[Trace]:
     db.init_db()
-    return [process_signal(s, now_utc=now_utc) for s in signals]
+    traces = []
+    total = len(signals)
+    for i, s in enumerate(signals, start=1):
+        trace = process_signal(s, now_utc=now_utc)
+        traces.append(trace)
+        if show_progress:
+            # Real Razorpay API calls are rate-limited to ~1/sec (see
+            # app/integrations/razorpay_client.py), so a full batch can take
+            # over a minute with no other output -- print progress so this
+            # doesn't look hung, especially live on camera for a demo.
+            print(
+                f"  [{i}/{total}] {trace.signal.type.value:30s} "
+                f"{trace.signal.customer_name:20s} -> {trace.action.status.value}",
+                flush=True,
+            )
+    return traces
