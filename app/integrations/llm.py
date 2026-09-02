@@ -20,6 +20,7 @@ prompts, same bounded JSON schemas, same fallback behavior either way.
 """
 import json
 import random
+import threading
 import time
 from typing import Optional
 
@@ -59,7 +60,79 @@ _GEMINI_MINIMAL_THINKING_SUPPORTED = None
 # fallback to the deterministic default: rate limiting (very reachable on a
 # free tier once calls run concurrently) and upstream unavailability.
 _RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
-_MAX_TRANSIENT_RETRIES = 2
+_MAX_TRANSIENT_RETRIES = 4
+
+# --- Adaptive client-side rate limiting -------------------------------------
+#
+# Free-tier keys rate-limit well before a laptop runs out of threads: a
+# 120-case batch (70 consultations at 6-way concurrency) came back 46% HTTP
+# 429, so nearly half the signals silently fell back to the deterministic
+# default instead of getting a real model opinion.
+#
+# Google publishes per-account limits in AI Studio rather than one fixed
+# number per model, and a hard-coded RPM guess would be wrong for anyone on a
+# different tier. So rather than guess, the client DISCOVERS the usable rate:
+# requests are spaced by a shared minimum interval, every 429 widens that
+# interval for all workers, and sustained success narrows it again. A run
+# self-tunes to whatever the key actually allows, and an upgraded key speeds
+# back up on its own.
+_rate_lock = threading.Lock()
+_min_request_interval = 1.0      # seconds between requests; adapts at runtime
+# Starts deliberately conservative rather than fast: converging DOWN from a
+# safe rate costs a few seconds on a generous key, while converging UP from an
+# aggressive one costs real 429s, and a 429 that exhausts its retries becomes a
+# signal that never got a model opinion at all.
+_INTERVAL_FLOOR = 0.2
+_INTERVAL_CEILING = 12.0
+_INTERVAL_WIDEN_FACTOR = 1.8     # on a 429, back off hard
+_INTERVAL_NARROW_FACTOR = 0.97   # on success, creep back down
+_last_request_at = 0.0
+
+
+def _throttle() -> None:
+    """Serialises request starts so concurrent workers stay under the rate
+    limit. The sleep deliberately happens while holding the lock: each caller
+    waits its turn, which is what spaces the requests out."""
+    global _last_request_at
+    with _rate_lock:
+        wait = _min_request_interval - (time.monotonic() - _last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_at = time.monotonic()
+
+
+def _widen_interval() -> None:
+    global _min_request_interval
+    with _rate_lock:
+        _min_request_interval = min(
+            _min_request_interval * _INTERVAL_WIDEN_FACTOR, _INTERVAL_CEILING
+        )
+
+
+def _narrow_interval() -> None:
+    global _min_request_interval
+    with _rate_lock:
+        _min_request_interval = max(
+            _min_request_interval * _INTERVAL_NARROW_FACTOR, _INTERVAL_FLOOR
+        )
+
+
+def current_request_interval() -> float:
+    """The interval the client has settled on for this run (tests/diagnostics)."""
+    with _rate_lock:
+        return _min_request_interval
+
+
+def _retry_delay(exc, attempt: int) -> float:
+    """Prefers the server's own Retry-After over a guess -- it knows when the
+    window reopens and we don't."""
+    headers = getattr(exc, "headers", None)
+    if headers is not None:
+        try:
+            return min(float(headers.get("Retry-After")), _INTERVAL_CEILING * 2)
+        except (TypeError, ValueError):
+            pass
+    return min(1.5 * (2 ** attempt), _INTERVAL_CEILING * 2) + random.uniform(0, 0.5)
 
 
 def _gemini_payload(prompt: str, max_tokens: int, minimal_thinking: bool) -> bytes:
@@ -114,13 +187,21 @@ def _gemini_post_with_retry(payload: bytes) -> dict:
     import urllib.error
 
     for attempt in range(_MAX_TRANSIENT_RETRIES + 1):
+        _throttle()
         try:
-            return _gemini_post(payload)
+            response = _gemini_post(payload)
         except urllib.error.HTTPError as exc:
-            retryable = exc.code in _RETRYABLE_HTTP_CODES
-            if not retryable or attempt == _MAX_TRANSIENT_RETRIES:
+            if exc.code == 429:
+                # Slow every worker down, not just this one: the limit is
+                # per-key, so one thread hitting it means all of them are
+                # going too fast.
+                _widen_interval()
+            if exc.code not in _RETRYABLE_HTTP_CODES or attempt == _MAX_TRANSIENT_RETRIES:
                 raise
-            time.sleep(1.5 * (2 ** attempt) + random.uniform(0, 0.4))
+            time.sleep(_retry_delay(exc, attempt))
+        else:
+            _narrow_interval()
+            return response
 
 
 def _gemini_generate(prompt: str, max_tokens: int) -> str:
