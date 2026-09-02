@@ -6,6 +6,12 @@ venv/
 *.db
 .DS_Store
 reports/*.json
+reports/*.html
+# Generated deliverables, not sources: the dashboard is rebuilt from the audit
+# trail by scripts/build_dashboard.py, and the share zip is produced by
+# `git archive` -- committing either bloats the repo (and a committed zip ends
+# up inside the next zip).
+*.zip
 audit_log.jsonl
 state.json
 audit_trail.db
