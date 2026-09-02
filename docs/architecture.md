@@ -228,6 +228,25 @@ deterministic layer owns. It may:
   on. A channel outside that list is discarded and the playbook's own
   default is used, so a model naming `email` for a playbook that only does
   SMS/WhatsApp causes a normal send, not a broken one.
+
+  This one was measured before it was trusted, and the first version failed
+  that check. Given a free choice with no per-customer information, the model
+  routed 24 of 26 English-preference customers to WhatsApp -- statistically
+  identical to the Hindi ones -- while its stated reasoning cited a language
+  preference it demonstrably wasn't acting on. That wasn't the model being
+  lazy: it was being asked to discriminate between customers on evidence it
+  had never been given, and a uniform answer is the rational response to
+  that. Worse, the deterministic default it was overriding already varied by
+  language, so the "smarter" layer was producing the *less* personalised
+  outcome.
+
+  The fix was to supply the missing evidence rather than to keep the claim:
+  the context now carries `channels_already_tried` (from
+  `db.get_channel_history` -- real attempts per channel, and how many led to
+  a confirmed recovery), and the prompt instructs the agent to return `null`
+  and let the language-aware default stand unless that history gives a
+  concrete reason to switch. A channel override now means something happened
+  before; on a first contact there is no override.
 - **postpone the outreach** by 0-24 hours, when contacting immediately looks
   counterproductive for that specific case (a bank-side failure that needs
   time to clear before a retry has any chance).

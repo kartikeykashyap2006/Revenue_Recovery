@@ -243,3 +243,32 @@ def release_deferred_signal(signal_id: str) -> bool:
             _save_state(state)
             return True
     return False
+
+
+def get_channel_history(customer_id: str) -> Dict[str, Dict[str, int]]:
+    """What we've already tried on this customer, and whether it worked:
+    {channel: {"attempts": n, "recovered": m}}.
+
+    This is the evidence the AI agent needs to make a channel choice mean
+    something. Without it the model is asked to pick a channel with nothing
+    to distinguish one customer from another, and (rationally) returns the
+    same blanket answer every time -- which measured out as 24/26
+    English-preference customers routed to WhatsApp, statistically identical
+    to the Hindi ones, with reasoning that cited a language preference it
+    wasn't actually acting on. Real per-customer history gives the choice
+    something to bite on; where there's no history, the agent is told to
+    decline and let the deterministic (language-aware) default stand.
+    """
+    state = _load_state()
+    recovered_signals = {
+        r["signal_id"] for r in state["pending_recoveries"] if r.get("confirmed") is True
+    }
+    history: Dict[str, Dict[str, int]] = {}
+    for contact in state["contact_history"]:
+        if contact["customer_id"] != customer_id:
+            continue
+        entry = history.setdefault(contact["channel"], {"attempts": 0, "recovered": 0})
+        entry["attempts"] += 1
+        if contact["signal_id"] in recovered_signals:
+            entry["recovered"] += 1
+    return history

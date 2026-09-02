@@ -66,6 +66,7 @@ def build_context(signal: Signal, diagnosis: Diagnosis, decision: Decision, now_
         "language_pref": signal.language_pref,
         "prior_contact_attempts": db.get_contact_count(signal.customer_id),
         "available_channels": PLAYBOOK_CHANNELS.get(decision.playbook, []),
+        "channels_already_tried": db.get_channel_history(signal.customer_id),
     }
     if signal.type == SignalType.SUBSCRIPTION_MANDATE_FAILURE:
         context["mandate_attempt_count"] = signal.metadata.get("attempt_count")

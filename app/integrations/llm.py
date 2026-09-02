@@ -320,6 +320,7 @@ Diagnosed root cause: {root_cause} (rule confidence: {diagnosis_confidence})
 Assigned playbook: {playbook}
 Customer's prior contact attempts on record: {prior_contact_attempts}
 Customer language preference: {language_pref}
+Channels already tried for this customer (attempts, and how many led to a recovery): {channels_already_tried}
 Additional context: {extra_context}
 
 Choose exactly one action:
@@ -328,7 +329,7 @@ Choose exactly one action:
 - "escalate": flag this specific case for human review even though it didn't trip an automatic escalation rule (e.g. borderline-high amount, unusually low diagnosis confidence, or something in the context looks atypical for this root cause).
 
 If (and only if) you choose "proceed", you may also shape HOW the outreach happens:
-- "channel": which channel to use, from this list and no other: {available_channels}. Consider the customer's language preference and what the root cause implies (e.g. a payment that failed on a technical glitch may deserve a more immediate channel than a routine reminder). Use null to accept the playbook's default.
+- "channel": which channel to use, from this list and no other: {available_channels}. Default to null. The playbook's own default already adapts to the customer's language preference, so only name a channel when "Channels already tried" above gives you a concrete reason to switch -- for example a channel attempted more than once for this customer with no recovery. If that history is empty you have no evidence to justify overriding the default: return null.
 - "defer_hours": an integer from 0 to {max_defer_hours}. Use 0 to send now. Use a positive number when contacting immediately looks counterproductive for this specific case and waiting is likely to do better (e.g. a bank-side failure that needs time to clear before a retry has any chance). You can only delay outreach, never bring it forward.
 
 Respond with strict JSON, and nothing else, no markdown formatting: {{"action": "<one of proceed|hold|escalate>", "channel": "<one of {available_channels}, or null>", "defer_hours": <integer 0-{max_defer_hours}>, "confidence": <0-1 float>, "reasoning": "<one or two sentences, specific to this case, mentioning the channel/delay choice if you made one>"}}
@@ -355,7 +356,7 @@ def llm_recommend_action(signal: Signal, diagnosis: Diagnosis, context: dict) ->
         core_keys = {
             "signal_type", "amount", "currency", "root_cause",
             "diagnosis_confidence", "playbook", "prior_contact_attempts", "language_pref",
-            "available_channels",
+            "available_channels", "channels_already_tried",
         }
         extra = {k: v for k, v in context.items() if k not in core_keys}
         prompt = _AGENT_PROMPT_TEMPLATE.format(
@@ -369,6 +370,7 @@ def llm_recommend_action(signal: Signal, diagnosis: Diagnosis, context: dict) ->
             language_pref=context["language_pref"],
             extra_context=json.dumps(extra, default=str),
             available_channels=", ".join(context.get("available_channels", [])) or "none",
+            channels_already_tried=json.dumps(context.get("channels_already_tried", {}), default=str),
             max_defer_hours=_MAX_DEFER_HOURS,
         )
         data = _extract_json(_call_llm(prompt, max_tokens=200))

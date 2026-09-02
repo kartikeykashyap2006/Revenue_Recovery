@@ -103,9 +103,11 @@ not just annotated it. `app/engine/agent.py` has the full bounded-action
 design; if no key is configured, the whole system still runs identically
 minus this layer -- it's additive, never load-bearing.
 
-The agent also decides *how* to recover, not just whether: it picks the
-outreach channel (only from what that playbook can actually deliver) and can
-postpone contact by up to 24 hours when now looks like the wrong moment. Show
+The agent also decides *how* to recover, not just whether: it can switch the
+outreach channel (only from what that playbook can actually deliver, and only
+when this customer's own contact history gives a reason -- on a first contact
+it declines and the language-aware default stands) and can postpone contact by
+up to 24 hours when now looks like the wrong moment. Show
 a trace whose plan reads
 `[diagnose:technical_glitch, execute:checkout_dropoff, ai_agent:proceed, ai_channel:whatsapp]`
 -- the deterministic engine picked the playbook, the model picked the channel.
