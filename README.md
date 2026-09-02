@@ -51,6 +51,16 @@ python scripts/inspect_audit.py --n 10             # last 10 audit events
 python scripts/inspect_audit.py --signal-id <id>   # full trace for one signal
 ```
 
+Or see the whole batch at once, in a browser:
+
+```bash
+python scripts/build_dashboard.py --open
+```
+
+That writes `reports/dashboard.html` -- one self-contained file, no server and no
+network, so it works on conference wifi. Every case on it expands to the full
+audit trail for that signal, read straight from `audit_log.jsonl`.
+
 Run the test suite (engine, policy guardrails, playbooks, error handling):
 
 ```bash
@@ -146,6 +156,10 @@ uvicorn app.main:app --reload
   Razorpay what happened to unconfirmed links (for when a webhook can't reach
   your machine)
 - `scripts/system_metrics.py` — aggregate performance metrics from the audit trail
+- `scripts/build_dashboard.py` — renders the latest batch as a self-contained
+  `reports/dashboard.html` (no server, works offline): headline numbers, the
+  detection funnel, recovery by scenario, what the AI agent did, and every case
+  expandable to its complete audit trail
 - `tests/` — pytest coverage for signal detection (resolved-vs-unresolved
   cases, overdue-invoice timing), diagnosis rules, policy guardrails
   (opt-outs, escalation, stopping rules, IST-aware quiet hours), playbooks,

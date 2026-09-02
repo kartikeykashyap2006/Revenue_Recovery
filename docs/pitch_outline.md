@@ -55,6 +55,14 @@ but shares the same shape: detect, diagnose, recover.
 
 ## 2. Live demo (2.5 min)
 
+Have `reports/dashboard.html` open in a browser tab before you start
+(`python scripts/build_dashboard.py`). Run the batch on camera, then rebuild
+and switch to the tab: headline numbers, the detection funnel, recovery by
+scenario, and a case list where any row expands to that signal's entire audit
+trail. Expanding one case is the strongest single moment in the demo -- it
+turns "we log every decision" from a claim into something the judges watch you
+click.
+
 Run the command above on camera. Point out the two visibly distinct
 phases as they happen: every signal is processed and sent first (all
 show `-> sent`), then a separate "Simulating gateway confirmations for N

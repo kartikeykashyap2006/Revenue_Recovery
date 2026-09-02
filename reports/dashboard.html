@@ -1,0 +1,1061 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>AI Revenue Recovery Agent</title></head><body><style>
+:root{color-scheme:light;
+ --plane:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+ --grid:#e1e0d9;--border:rgba(11,11,11,0.10);--track:rgba(11,11,11,0.06);}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
+ --plane:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;
+ --grid:#2c2c2a;--border:rgba(255,255,255,0.10);--track:rgba(255,255,255,0.08);}}
+:root[data-theme="dark"]{color-scheme:dark;
+ --plane:#0d0d0d;--surface:#1a1a19;--ink:#fff;--ink2:#c3c2b7;--muted:#898781;
+ --grid:#2c2c2a;--border:rgba(255,255,255,0.10);--track:rgba(255,255,255,0.08);}
+*{box-sizing:border-box}
+body{margin:0;background:var(--plane);color:var(--ink);
+ font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:32px 24px 64px}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px;letter-spacing:-0.01em}
+.sub{color:var(--ink2);margin:0 0 28px;font-size:13px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+ padding:20px;margin-bottom:20px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink2);
+ margin:0 0 16px;font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px}
+.stat-label{font-size:12px;color:var(--ink2);margin-bottom:6px}
+.stat-value{font-size:26px;font-weight:600;letter-spacing:-0.02em}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.row{display:grid;grid-template-columns:232px 1fr auto;gap:12px;align-items:center;
+ margin-bottom:10px}
+.row-label{font-size:13px;color:var(--ink2)}
+.row-value{font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.track{background:var(--track);border-radius:4px;height:14px;overflow:hidden}
+.fill{height:100%;background:var(--c);border-radius:0 4px 4px 0;min-width:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fill{background:var(--cd)}}
+:root[data-theme="dark"] .fill{background:var(--cd)}
+.seg-wrap{display:flex;height:100%;gap:2px}
+.seg-rec{background:var(--c);border-radius:4px 0 0 4px;flex:none}
+.seg-risk{background:var(--c);opacity:0.28;border-radius:0 4px 4px 0;flex:1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg-rec,
+ :root:not([data-theme="light"]) .seg-risk{background:var(--cd)}}
+:root[data-theme="dark"] .seg-rec,:root[data-theme="dark"] .seg-risk{background:var(--cd)}
+.dim{color:var(--muted);font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);
+ border-radius:999px;padding:4px 11px;font-size:12px;background:var(--surface)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+details.case{border-top:1px solid var(--grid)}
+details.case:last-child{border-bottom:1px solid var(--grid)}
+summary{display:grid;grid-template-columns:96px 1fr 150px 110px 96px;gap:12px;
+ align-items:center;padding:11px 4px;cursor:pointer;list-style:none;font-size:13px}
+summary::-webkit-details-marker{display:none}
+summary:hover{background:var(--track)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted)}
+.amt{text-align:right;font-variant-numeric:tabular-nums}
+.trace{padding:6px 4px 18px 4px}
+.stage{border-left:2px solid var(--grid);padding:0 0 0 14px;margin:0 0 10px}
+.stage-refined{border-left-color:#fab219}
+.stage-head{display:flex;gap:10px;align-items:baseline;margin-bottom:4px}
+.stage-name{font-size:12px;font-weight:600;letter-spacing:0.02em}
+.stage-refined .stage-name{color:#b07c00}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .stage-refined .stage-name{color:#fab219}}
+.stage-time{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+pre{margin:0;background:var(--plane);border:1px solid var(--border);border-radius:6px;
+ padding:10px 12px;font-size:11.5px;line-height:1.45;overflow-x:auto;color:var(--ink2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.note{font-size:12px;color:var(--muted);margin-top:12px}
+.thead{display:grid;grid-template-columns:96px 1fr 150px 110px 96px;gap:12px;
+ padding:0 4px 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;
+ color:var(--muted);border-bottom:1px solid var(--grid)}
+</style><div class="wrap"><h1>AI Revenue Recovery Agent</h1><p class="sub">Most recent batch &middot; 16 signals processed</p><div class="card"><div class="stats"><div class="stat"><div class="stat-label">Revenue at risk</div><div class="stat-value">Rs. 533,226</div></div><div class="stat"><div class="stat-label">Confirmed recovered</div><div class="stat-value">Rs. 34,156</div><div class="stat-sub">via a distinct confirmation event</div></div><div class="stat"><div class="stat-label">Recovery rate</div><div class="stat-value">6.4%</div></div><div class="stat"><div class="stat-label">Signals detected</div><div class="stat-value">16 of 25</div><div class="stat-sub">9 resolved on their own</div></div></div></div><div class="card"><h2>From raw events to recovered revenue</h2><div class="row" title="Raw event-cases: 25 - every case the stream contained">  <div class="row-label">Raw event-cases</div>  <div class="track">    <div class="fill" style="width:100.00%;--c:#2a78d6;--cd:#3987e5"></div>  </div>  <div class="row-value">25</div></div><div class="row" title="Needed a signal: 16 - the rest resolved without us">  <div class="row-label">Needed a signal</div>  <div class="track">    <div class="fill" style="width:64.00%;--c:#2a78d6;--cd:#3987e5"></div>  </div>  <div class="row-value">16</div></div><div class="row" title="Contacted: 16 - cleared every compliance guardrail">  <div class="row-label">Contacted</div>  <div class="track">    <div class="fill" style="width:64.00%;--c:#2a78d6;--cd:#3987e5"></div>  </div>  <div class="row-value">16</div></div><div class="row" title="Confirmed recovered: 6 - a real confirmation event said so">  <div class="row-label">Confirmed recovered</div>  <div class="track">    <div class="fill" style="width:24.00%;--c:#2a78d6;--cd:#3987e5"></div>  </div>  <div class="row-value">6</div></div><p class="note">Each stage is a real filter, not a restatement of the one above it.</p></div><div class="card"><h2>Recovery by scenario</h2><div class="legend"><span><i class="dot" style="background:#eda100"></i>overdue_receivable</span><span><i class="dot" style="background:#1baf7a"></i>subscription_mandate_failure</span><span><i class="dot" style="background:#2a78d6"></i>payment_failure</span><span><i class="dot" style="background:#eb6834"></i>checkout_abandonment</span></div><div class="row" title="overdue_receivable: 2 signals, Rs. 0 recovered of Rs. 390,406 at risk"><div class="row-label">overdue_receivable <span class="dim">(2)</span></div><div class="track"><div class="seg-wrap" style="width:100.00%"><div class="seg-rec" style="width:0.00%;--c:#eda100;--cd:#c98500"></div><div class="seg-risk" style="--c:#eda100;--cd:#c98500"></div></div></div><div class="row-value">Rs. 0 <span class="dim">of 390,406 (0%)</span></div></div><div class="row" title="checkout_abandonment: 6 signals, Rs. 5,463 recovered of Rs. 97,827 at risk"><div class="row-label">checkout_abandonment <span class="dim">(6)</span></div><div class="track"><div class="seg-wrap" style="width:25.06%"><div class="seg-rec" style="width:5.58%;--c:#eb6834;--cd:#d95926"></div><div class="seg-risk" style="--c:#eb6834;--cd:#d95926"></div></div></div><div class="row-value">Rs. 5,463 <span class="dim">of 97,827 (6%)</span></div></div><div class="row" title="payment_failure: 5 signals, Rs. 26,541 recovered of Rs. 40,829 at risk"><div class="row-label">payment_failure <span class="dim">(5)</span></div><div class="track"><div class="seg-wrap" style="width:10.46%"><div class="seg-rec" style="width:65.00%;--c:#2a78d6;--cd:#3987e5"></div><div class="seg-risk" style="--c:#2a78d6;--cd:#3987e5"></div></div></div><div class="row-value">Rs. 26,541 <span class="dim">of 40,829 (65%)</span></div></div><div class="row" title="subscription_mandate_failure: 3 signals, Rs. 2,152 recovered of Rs. 4,163 at risk"><div class="row-label">subscription_mandate_failure <span class="dim">(3)</span></div><div class="track"><div class="seg-wrap" style="width:1.07%"><div class="seg-rec" style="width:51.70%;--c:#1baf7a;--cd:#199e70"></div><div class="seg-risk" style="--c:#1baf7a;--cd:#199e70"></div></div></div><div class="row-value">Rs. 2,152 <span class="dim">of 4,163 (52%)</span></div></div><p class="note">Solid = confirmed recovered. Pale = still at risk. Bar length is the amount at stake, so the scenarios stay comparable.</p></div><div class="card"><h2>Outcomes</h2><div class="chips"><span class="chip"><i class="dot" style="background:#2a78d6"></i>sent &middot; 10</span><span class="chip"><i class="dot" style="background:#0ca30c"></i>recovered &middot; 6</span></div></div><div class="card"><h2>What the AI agent actually did</h2><div class="stats"><div class="stat"><div class="stat-label">Consultations</div><div class="stat-value">16</div><div class="stat-sub">only signals that cleared every guardrail</div></div><div class="stat"><div class="stat-label">Real model answers</div><div class="stat-value">0 of 16</div><div class="stat-sub">16 fell back safely</div></div><div class="stat"><div class="stat-label">Changed the outcome</div><div class="stat-value">0</div><div class="stat-sub">overrode the deterministic decision</div></div><div class="stat"><div class="stat-label">Chose the channel</div><div class="stat-value">0</div><div class="stat-sub">only where contact history justified it</div></div></div></div><div class="card"><h2>Every case, and its complete audit trail</h2><div class="thead"><div>outcome</div><div>customer</div><div>scenario</div><div class="amt">amount</div><div>signal</div></div><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Arjun Verma</span><span class="mono">overdue_receivable</span><span class="amt">Rs. 213,464</span><span class="mono">839b1cb8</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;overdue_receivable&quot;,
+  &quot;customer_id&quot;: &quot;cust_arjun_5&quot;,
+  &quot;customer_name&quot;: &quot;Arjun Verma&quot;,
+  &quot;amount&quot;: 213464.2,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;7608121563&quot;,
+    &quot;email&quot;: &quot;arjun.test.228@example.com&quot;,
+    &quot;reason_code&quot;: &quot;no_response&quot;,
+    &quot;due_date&quot;: &quot;2026-07-20&quot;,
+    &quot;invoice_id&quot;: &quot;inv_overdue_receivable_5_159d6a&quot;
+  },
+  &quot;id&quot;: &quot;839b1cb8&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929915&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;839b1cb8&quot;,
+  &quot;root_cause&quot;: &quot;forgot&quot;,
+  &quot;confidence&quot;: 0.6,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;no_response&#x27; for signal type &#x27;overdue_receivable&#x27; to root cause &#x27;forgot&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;839b1cb8&quot;,
+  &quot;playbook&quot;: &quot;receivables_chaser&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:forgot&quot;,
+    &quot;execute:receivables_chaser&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;839b1cb8&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:email</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_arjun_5&quot;,
+  &quot;message&quot;: &quot;Hi Arjun Verma, your invoice of Rs. 213,464 (due 2026-07-20) is still pending. Please arrange payment soon.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;839b1cb8&quot;,
+  &quot;playbook&quot;: &quot;receivables_chaser&quot;,
+  &quot;channel&quot;: &quot;email&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Arjun Verma, your invoice of Rs. 213,464 (due 2026-07-20) is still pending. Please arrange payment soon.&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;promise_to_pay_recorded&quot;: false,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.069448&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;inv_overdue_receivable_5_159d6a&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Reyansh Sharma</span><span class="mono">overdue_receivable</span><span class="amt">Rs. 176,942</span><span class="mono">d4459f2b</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;overdue_receivable&quot;,
+  &quot;customer_id&quot;: &quot;cust_reyansh_12&quot;,
+  &quot;customer_name&quot;: &quot;Reyansh Sharma&quot;,
+  &quot;amount&quot;: 176941.88,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;8573580786&quot;,
+    &quot;email&quot;: &quot;reyansh.test.934@example.com&quot;,
+    &quot;reason_code&quot;: &quot;cash_flow&quot;,
+    &quot;due_date&quot;: &quot;2026-07-27&quot;,
+    &quot;invoice_id&quot;: &quot;inv_overdue_receivable_12_4ba0ca&quot;
+  },
+  &quot;id&quot;: &quot;d4459f2b&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929924&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;d4459f2b&quot;,
+  &quot;root_cause&quot;: &quot;cash_flow_delay&quot;,
+  &quot;confidence&quot;: 0.75,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;cash_flow&#x27; for signal type &#x27;overdue_receivable&#x27; to root cause &#x27;cash_flow_delay&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;d4459f2b&quot;,
+  &quot;playbook&quot;: &quot;receivables_chaser&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:cash_flow_delay&quot;,
+    &quot;execute:receivables_chaser&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;d4459f2b&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:email</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_reyansh_12&quot;,
+  &quot;message&quot;: &quot;Hi Reyansh Sharma, your invoice of Rs. 176,942 (due 2026-07-27) is still pending. Please arrange payment soon.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;d4459f2b&quot;,
+  &quot;playbook&quot;: &quot;receivables_chaser&quot;,
+  &quot;channel&quot;: &quot;email&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Reyansh Sharma, your invoice of Rs. 176,942 (due 2026-07-27) is still pending. Please arrange payment soon.&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;promise_to_pay_recorded&quot;: false,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.078111&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;inv_overdue_receivable_12_4ba0ca&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Pooja Rao</span><span class="mono">checkout_abandonment</span><span class="amt">Rs. 23,749</span><span class="mono">92f852a8</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;checkout_abandonment&quot;,
+  &quot;customer_id&quot;: &quot;cust_pooja_6&quot;,
+  &quot;customer_name&quot;: &quot;Pooja Rao&quot;,
+  &quot;amount&quot;: 23749.19,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;9160021300&quot;,
+    &quot;email&quot;: &quot;pooja.test.254@example.com&quot;,
+    &quot;reason_code&quot;: &quot;no_upi_available&quot;,
+    &quot;checkout_id&quot;: &quot;checkout_abandonment_6_6c56ff&quot;
+  },
+  &quot;id&quot;: &quot;92f852a8&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929948&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;92f852a8&quot;,
+  &quot;root_cause&quot;: &quot;payment_method_unavailable&quot;,
+  &quot;confidence&quot;: 0.85,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;no_upi_available&#x27; for signal type &#x27;checkout_abandonment&#x27; to root cause &#x27;payment_method_unavailable&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;92f852a8&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:payment_method_unavailable&quot;,
+    &quot;execute:checkout_dropoff&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;92f852a8&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:email</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_pooja_6&quot;,
+  &quot;message&quot;: &quot;Hi Pooja Rao, your cart is still waiting! Complete your order here: https://rzp.io/mock/bc4af4e3a9&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;92f852a8&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;channel&quot;: &quot;email&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Pooja Rao, your cart is still waiting! Complete your order here: https://rzp.io/mock/bc4af4e3a9&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/bc4af4e3a9&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_bc4af4e3a9&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.112025&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_bc4af4e3a9&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Aarav Patel</span><span class="mono">checkout_abandonment</span><span class="amt">Rs. 21,230</span><span class="mono">6f4bcdad</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;checkout_abandonment&quot;,
+  &quot;customer_id&quot;: &quot;cust_aarav_24&quot;,
+  &quot;customer_name&quot;: &quot;Aarav Patel&quot;,
+  &quot;amount&quot;: 21230.12,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;7407755607&quot;,
+    &quot;email&quot;: &quot;aarav.test.358@example.com&quot;,
+    &quot;reason_code&quot;: &quot;no_upi_available&quot;,
+    &quot;checkout_id&quot;: &quot;checkout_abandonment_24_308636&quot;
+  },
+  &quot;id&quot;: &quot;6f4bcdad&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929968&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;6f4bcdad&quot;,
+  &quot;root_cause&quot;: &quot;payment_method_unavailable&quot;,
+  &quot;confidence&quot;: 0.85,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;no_upi_available&#x27; for signal type &#x27;checkout_abandonment&#x27; to root cause &#x27;payment_method_unavailable&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;6f4bcdad&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:payment_method_unavailable&quot;,
+    &quot;execute:checkout_dropoff&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;6f4bcdad&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_aarav_24&quot;,
+  &quot;message&quot;: &quot;Hi Aarav Patel, aapka cart abhi bhi ready hai! Order complete karne ke liye yahan click karein: https://rzp.io/mock/9a6e4c1813&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;6f4bcdad&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Aarav Patel, aapka cart abhi bhi ready hai! Order complete karne ke liye yahan click karein: https://rzp.io/mock/9a6e4c1813&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/9a6e4c1813&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_9a6e4c1813&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.136379&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_9a6e4c1813&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Aarav Kulkarni</span><span class="mono">checkout_abandonment</span><span class="amt">Rs. 19,079</span><span class="mono">299fa267</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;checkout_abandonment&quot;,
+  &quot;customer_id&quot;: &quot;cust_aarav_8&quot;,
+  &quot;customer_name&quot;: &quot;Aarav Kulkarni&quot;,
+  &quot;amount&quot;: 19078.66,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;6623175732&quot;,
+    &quot;email&quot;: &quot;aarav.test.930@example.com&quot;,
+    &quot;reason_code&quot;: &quot;session_timeout&quot;,
+    &quot;checkout_id&quot;: &quot;checkout_abandonment_8_520eb8&quot;
+  },
+  &quot;id&quot;: &quot;299fa267&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929983&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;299fa267&quot;,
+  &quot;root_cause&quot;: &quot;distracted_timeout&quot;,
+  &quot;confidence&quot;: 0.6,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;session_timeout&#x27; for signal type &#x27;checkout_abandonment&#x27; to root cause &#x27;distracted_timeout&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;299fa267&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:distracted_timeout&quot;,
+    &quot;execute:checkout_dropoff&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;299fa267&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_aarav_8&quot;,
+  &quot;message&quot;: &quot;Hi Aarav Kulkarni, aapka cart abhi bhi ready hai! Order complete karne ke liye yahan click karein: https://rzp.io/mock/3c8a8ae465&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;299fa267&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Aarav Kulkarni, aapka cart abhi bhi ready hai! Order complete karne ke liye yahan click karein: https://rzp.io/mock/3c8a8ae465&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/3c8a8ae465&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_3c8a8ae465&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.149245&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_3c8a8ae465&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#0ca30c"></i> recovered</span><span>Priya Joshi</span><span class="mono">payment_failure</span><span class="amt">Rs. 14,776</span><span class="mono">352e9b73</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;payment_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_priya_22&quot;,
+  &quot;customer_name&quot;: &quot;Priya Joshi&quot;,
+  &quot;amount&quot;: 14775.5,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;6260981875&quot;,
+    &quot;email&quot;: &quot;priya.test.882@example.com&quot;,
+    &quot;reason_code&quot;: &quot;limit_exceeded&quot;,
+    &quot;payment_method&quot;: &quot;card&quot;
+  },
+  &quot;id&quot;: &quot;352e9b73&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929986&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;352e9b73&quot;,
+  &quot;root_cause&quot;: &quot;exceeded_limit&quot;,
+  &quot;confidence&quot;: 0.9,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;limit_exceeded&#x27; for signal type &#x27;payment_failure&#x27; to root cause &#x27;exceeded_limit&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;352e9b73&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:exceeded_limit&quot;,
+    &quot;execute:payment_retry&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;352e9b73&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:sms</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_priya_22&quot;,
+  &quot;message&quot;: &quot;Hi Priya Joshi, your payment of Rs. 14,776 didn&#x27;t go through. Retry here: https://rzp.io/mock/f6535c14ab&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;352e9b73&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;channel&quot;: &quot;sms&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Priya Joshi, your payment of Rs. 14,776 didn&#x27;t go through. Retry here: https://rzp.io/mock/f6535c14ab&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/f6535c14ab&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_f6535c14ab&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.155317&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: true,
+  &quot;amount&quot;: 14775.5,
+  &quot;reference&quot;: &quot;plink_mock_f6535c14ab&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Vivaan Iyer</span><span class="mono">checkout_abandonment</span><span class="amt">Rs. 14,327</span><span class="mono">cdb4f47f</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;checkout_abandonment&quot;,
+  &quot;customer_id&quot;: &quot;cust_vivaan_1&quot;,
+  &quot;customer_name&quot;: &quot;Vivaan Iyer&quot;,
+  &quot;amount&quot;: 14326.59,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;7211381563&quot;,
+    &quot;email&quot;: &quot;vivaan.test.660@example.com&quot;,
+    &quot;reason_code&quot;: &quot;session_timeout&quot;,
+    &quot;checkout_id&quot;: &quot;checkout_abandonment_1_23e58d&quot;
+  },
+  &quot;id&quot;: &quot;cdb4f47f&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929944&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;cdb4f47f&quot;,
+  &quot;root_cause&quot;: &quot;distracted_timeout&quot;,
+  &quot;confidence&quot;: 0.6,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;session_timeout&#x27; for signal type &#x27;checkout_abandonment&#x27; to root cause &#x27;distracted_timeout&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;cdb4f47f&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:distracted_timeout&quot;,
+    &quot;execute:checkout_dropoff&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;cdb4f47f&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:email</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_vivaan_1&quot;,
+  &quot;message&quot;: &quot;Hi Vivaan Iyer, your cart is still waiting! Complete your order here: https://rzp.io/mock/73851055f8&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;cdb4f47f&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;channel&quot;: &quot;email&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Vivaan Iyer, your cart is still waiting! Complete your order here: https://rzp.io/mock/73851055f8&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/73851055f8&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_73851055f8&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.104787&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_73851055f8&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Sneha Verma</span><span class="mono">checkout_abandonment</span><span class="amt">Rs. 13,980</span><span class="mono">f19d14fa</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;checkout_abandonment&quot;,
+  &quot;customer_id&quot;: &quot;cust_sneha_4&quot;,
+  &quot;customer_name&quot;: &quot;Sneha Verma&quot;,
+  &quot;amount&quot;: 13979.93,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;7712380458&quot;,
+    &quot;email&quot;: &quot;sneha.test.938@example.com&quot;,
+    &quot;reason_code&quot;: &quot;session_timeout&quot;,
+    &quot;checkout_id&quot;: &quot;checkout_abandonment_4_3cd5ae&quot;
+  },
+  &quot;id&quot;: &quot;f19d14fa&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929939&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;f19d14fa&quot;,
+  &quot;root_cause&quot;: &quot;distracted_timeout&quot;,
+  &quot;confidence&quot;: 0.6,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;session_timeout&#x27; for signal type &#x27;checkout_abandonment&#x27; to root cause &#x27;distracted_timeout&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;f19d14fa&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:distracted_timeout&quot;,
+    &quot;execute:checkout_dropoff&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;f19d14fa&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_sneha_4&quot;,
+  &quot;message&quot;: &quot;Hi Sneha Verma, aapka cart abhi bhi ready hai! Order complete karne ke liye yahan click karein: https://rzp.io/mock/f007e0d48b&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;f19d14fa&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Sneha Verma, aapka cart abhi bhi ready hai! Order complete karne ke liye yahan click karein: https://rzp.io/mock/f007e0d48b&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/f007e0d48b&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_f007e0d48b&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.098206&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_f007e0d48b&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#0ca30c"></i> recovered</span><span>Sneha Chatterjee</span><span class="mono">payment_failure</span><span class="amt">Rs. 9,647</span><span class="mono">b7b17440</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;payment_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_sneha_10&quot;,
+  &quot;customer_name&quot;: &quot;Sneha Chatterjee&quot;,
+  &quot;amount&quot;: 9646.52,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;6467069774&quot;,
+    &quot;email&quot;: &quot;sneha.test.282@example.com&quot;,
+    &quot;reason_code&quot;: &quot;limit_exceeded&quot;,
+    &quot;payment_method&quot;: &quot;upi&quot;
+  },
+  &quot;id&quot;: &quot;b7b17440&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929990&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b7b17440&quot;,
+  &quot;root_cause&quot;: &quot;exceeded_limit&quot;,
+  &quot;confidence&quot;: 0.9,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;limit_exceeded&#x27; for signal type &#x27;payment_failure&#x27; to root cause &#x27;exceeded_limit&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b7b17440&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:exceeded_limit&quot;,
+    &quot;execute:payment_retry&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b7b17440&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_sneha_10&quot;,
+  &quot;message&quot;: &quot;Namaste Sneha Chatterjee, aapka payment of Rs. 9,647 complete nahi ho paya. Yahan click karke dobara try karein: https://rzp.io/mock/049bce2289&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b7b17440&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Namaste Sneha Chatterjee, aapka payment of Rs. 9,647 complete nahi ho paya. Yahan click karke dobara try karein: https://rzp.io/mock/049bce2289&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/049bce2289&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_049bce2289&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.161394&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: true,
+  &quot;amount&quot;: 9646.52,
+  &quot;reference&quot;: &quot;plink_mock_049bce2289&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Reyansh Iyer</span><span class="mono">payment_failure</span><span class="amt">Rs. 7,737</span><span class="mono">b24b73a2</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;payment_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_reyansh_20&quot;,
+  &quot;customer_name&quot;: &quot;Reyansh Iyer&quot;,
+  &quot;amount&quot;: 7736.87,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;7430107210&quot;,
+    &quot;email&quot;: &quot;reyansh.test.961@example.com&quot;,
+    &quot;reason_code&quot;: &quot;limit_exceeded&quot;,
+    &quot;payment_method&quot;: &quot;upi&quot;
+  },
+  &quot;id&quot;: &quot;b24b73a2&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929935&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b24b73a2&quot;,
+  &quot;root_cause&quot;: &quot;exceeded_limit&quot;,
+  &quot;confidence&quot;: 0.9,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;limit_exceeded&#x27; for signal type &#x27;payment_failure&#x27; to root cause &#x27;exceeded_limit&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b24b73a2&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:exceeded_limit&quot;,
+    &quot;execute:payment_retry&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b24b73a2&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:sms</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_reyansh_20&quot;,
+  &quot;message&quot;: &quot;Hi Reyansh Iyer, your payment of Rs. 7,737 didn&#x27;t go through. Retry here: https://rzp.io/mock/2070670ff3&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;b24b73a2&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;channel&quot;: &quot;sms&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Reyansh Iyer, your payment of Rs. 7,737 didn&#x27;t go through. Retry here: https://rzp.io/mock/2070670ff3&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/2070670ff3&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_2070670ff3&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.091790&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_2070670ff3&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Sai Nair</span><span class="mono">payment_failure</span><span class="amt">Rs. 6,552</span><span class="mono">a7ffa28d</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;payment_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_sai_17&quot;,
+  &quot;customer_name&quot;: &quot;Sai Nair&quot;,
+  &quot;amount&quot;: 6551.59,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;9869455432&quot;,
+    &quot;email&quot;: &quot;sai.test.918@example.com&quot;,
+    &quot;reason_code&quot;: &quot;limit_exceeded&quot;,
+    &quot;payment_method&quot;: &quot;card&quot;
+  },
+  &quot;id&quot;: &quot;a7ffa28d&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929993&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;a7ffa28d&quot;,
+  &quot;root_cause&quot;: &quot;exceeded_limit&quot;,
+  &quot;confidence&quot;: 0.9,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;limit_exceeded&#x27; for signal type &#x27;payment_failure&#x27; to root cause &#x27;exceeded_limit&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;a7ffa28d&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:exceeded_limit&quot;,
+    &quot;execute:payment_retry&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;a7ffa28d&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_sai_17&quot;,
+  &quot;message&quot;: &quot;Namaste Sai Nair, aapka payment of Rs. 6,552 complete nahi ho paya. Yahan click karke dobara try karein: https://rzp.io/mock/70d29d9c2e&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;a7ffa28d&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Namaste Sai Nair, aapka payment of Rs. 6,552 complete nahi ho paya. Yahan click karke dobara try karein: https://rzp.io/mock/70d29d9c2e&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/70d29d9c2e&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_70d29d9c2e&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.167555&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_70d29d9c2e&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#0ca30c"></i> recovered</span><span>Aditya Mehta</span><span class="mono">checkout_abandonment</span><span class="amt">Rs. 5,463</span><span class="mono">aa2b9d8b</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;checkout_abandonment&quot;,
+  &quot;customer_id&quot;: &quot;cust_aditya_14&quot;,
+  &quot;customer_name&quot;: &quot;Aditya Mehta&quot;,
+  &quot;amount&quot;: 5462.62,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;en&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;7645496892&quot;,
+    &quot;email&quot;: &quot;aditya.test.672@example.com&quot;,
+    &quot;reason_code&quot;: &quot;session_timeout&quot;,
+    &quot;checkout_id&quot;: &quot;checkout_abandonment_14_f698df&quot;
+  },
+  &quot;id&quot;: &quot;aa2b9d8b&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929960&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;aa2b9d8b&quot;,
+  &quot;root_cause&quot;: &quot;distracted_timeout&quot;,
+  &quot;confidence&quot;: 0.6,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;session_timeout&#x27; for signal type &#x27;checkout_abandonment&#x27; to root cause &#x27;distracted_timeout&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;aa2b9d8b&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:distracted_timeout&quot;,
+    &quot;execute:checkout_dropoff&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;aa2b9d8b&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:email</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_aditya_14&quot;,
+  &quot;message&quot;: &quot;Hi Aditya Mehta, your cart is still waiting! Complete your order here: https://rzp.io/mock/df455f6e94&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;aa2b9d8b&quot;,
+  &quot;playbook&quot;: &quot;checkout_dropoff&quot;,
+  &quot;channel&quot;: &quot;email&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Hi Aditya Mehta, your cart is still waiting! Complete your order here: https://rzp.io/mock/df455f6e94&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/df455f6e94&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_df455f6e94&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.129262&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: true,
+  &quot;amount&quot;: 5462.62,
+  &quot;reference&quot;: &quot;plink_mock_df455f6e94&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#0ca30c"></i> recovered</span><span>Arjun Rao</span><span class="mono">payment_failure</span><span class="amt">Rs. 2,119</span><span class="mono">e375444d</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;payment_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_arjun_0&quot;,
+  &quot;customer_name&quot;: &quot;Arjun Rao&quot;,
+  &quot;amount&quot;: 2119.01,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;6805920425&quot;,
+    &quot;email&quot;: &quot;arjun.test.160@example.com&quot;,
+    &quot;reason_code&quot;: &quot;insufficient_funds&quot;,
+    &quot;payment_method&quot;: &quot;netbanking&quot;
+  },
+  &quot;id&quot;: &quot;e375444d&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929979&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;e375444d&quot;,
+  &quot;root_cause&quot;: &quot;insufficient_funds&quot;,
+  &quot;confidence&quot;: 0.95,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;insufficient_funds&#x27; for signal type &#x27;payment_failure&#x27; to root cause &#x27;insufficient_funds&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;e375444d&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:insufficient_funds&quot;,
+    &quot;execute:payment_retry&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;e375444d&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_arjun_0&quot;,
+  &quot;message&quot;: &quot;Namaste Arjun Rao, aapka payment of Rs. 2,119 complete nahi ho paya. Yahan click karke dobara try karein: https://rzp.io/mock/8b99746ae5&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;e375444d&quot;,
+  &quot;playbook&quot;: &quot;payment_retry&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Namaste Arjun Rao, aapka payment of Rs. 2,119 complete nahi ho paya. Yahan click karke dobara try karein: https://rzp.io/mock/8b99746ae5&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/8b99746ae5&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_8b99746ae5&quot;,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.142761&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: true,
+  &quot;amount&quot;: 2119.01,
+  &quot;reference&quot;: &quot;plink_mock_8b99746ae5&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#2a78d6"></i> sent</span><span>Riya Kulkarni</span><span class="mono">subscription_mandate_failure</span><span class="amt">Rs. 2,011</span><span class="mono">5dfa6eb3</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;subscription_mandate_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_riya_3&quot;,
+  &quot;customer_name&quot;: &quot;Riya Kulkarni&quot;,
+  &quot;amount&quot;: 2010.96,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;8334700260&quot;,
+    &quot;email&quot;: &quot;riya.test.848@example.com&quot;,
+    &quot;reason_code&quot;: &quot;new_decline_code_unseen&quot;,
+    &quot;attempt_count&quot;: 3
+  },
+  &quot;id&quot;: &quot;5dfa6eb3&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929930&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;5dfa6eb3&quot;,
+  &quot;root_cause&quot;: &quot;unknown&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;No rule match for reason_code=&#x27;new_decline_code_unseen&#x27;; needs deeper diagnosis.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;5dfa6eb3&quot;,
+  &quot;playbook&quot;: &quot;subscription_mandate&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:unknown&quot;,
+    &quot;execute:subscription_mandate&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;5dfa6eb3&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_riya_3&quot;,
+  &quot;message&quot;: &quot;Namaste Riya Kulkarni, aapka subscription payment fail ho gaya. Please yahan update karein: https://rzp.io/mock/03db3b69a5&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;5dfa6eb3&quot;,
+  &quot;playbook&quot;: &quot;subscription_mandate&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Namaste Riya Kulkarni, aapka subscription payment fail ho gaya. Please yahan update karein: https://rzp.io/mock/03db3b69a5&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/03db3b69a5&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_03db3b69a5&quot;,
+    &quot;attempt&quot;: 3,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.085586&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: false,
+  &quot;amount&quot;: 0.0,
+  &quot;reference&quot;: &quot;plink_mock_03db3b69a5&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#0ca30c"></i> recovered</span><span>Krishna Iyer</span><span class="mono">subscription_mandate_failure</span><span class="amt">Rs. 1,220</span><span class="mono">ad51d426</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;subscription_mandate_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_krishna_9&quot;,
+  &quot;customer_name&quot;: &quot;Krishna Iyer&quot;,
+  &quot;amount&quot;: 1219.98,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;8797416387&quot;,
+    &quot;email&quot;: &quot;krishna.test.457@example.com&quot;,
+    &quot;reason_code&quot;: &quot;card_expired&quot;,
+    &quot;attempt_count&quot;: 1
+  },
+  &quot;id&quot;: &quot;ad51d426&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929956&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;ad51d426&quot;,
+  &quot;root_cause&quot;: &quot;card_expired&quot;,
+  &quot;confidence&quot;: 0.95,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;card_expired&#x27; for signal type &#x27;subscription_mandate_failure&#x27; to root cause &#x27;card_expired&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;ad51d426&quot;,
+  &quot;playbook&quot;: &quot;subscription_mandate&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:card_expired&quot;,
+    &quot;execute:subscription_mandate&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;ad51d426&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_krishna_9&quot;,
+  &quot;message&quot;: &quot;Namaste Krishna Iyer, aapka subscription payment fail ho gaya. Please yahan update karein: https://rzp.io/mock/5e084c3038&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;ad51d426&quot;,
+  &quot;playbook&quot;: &quot;subscription_mandate&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Namaste Krishna Iyer, aapka subscription payment fail ho gaya. Please yahan update karein: https://rzp.io/mock/5e084c3038&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/5e084c3038&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_5e084c3038&quot;,
+    &quot;attempt&quot;: 1,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.123106&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: true,
+  &quot;amount&quot;: 1219.98,
+  &quot;reference&quot;: &quot;plink_mock_5e084c3038&quot;
+}</pre></div></div></details><details class="case"><summary><span><i class="dot" style="background:#0ca30c"></i> recovered</span><span>Aditya Joshi</span><span class="mono">subscription_mandate_failure</span><span class="amt">Rs. 932</span><span class="mono">dd63a175</span></summary><div class="trace"><div class="stage "><div class="stage-head"><span class="stage-name">signal detected</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;type&quot;: &quot;subscription_mandate_failure&quot;,
+  &quot;customer_id&quot;: &quot;cust_aditya_18&quot;,
+  &quot;customer_name&quot;: &quot;Aditya Joshi&quot;,
+  &quot;amount&quot;: 932.31,
+  &quot;currency&quot;: &quot;INR&quot;,
+  &quot;language_pref&quot;: &quot;hi&quot;,
+  &quot;metadata&quot;: {
+    &quot;phone&quot;: &quot;6210949607&quot;,
+    &quot;email&quot;: &quot;aditya.test.212@example.com&quot;,
+    &quot;reason_code&quot;: &quot;card_expired&quot;,
+    &quot;attempt_count&quot;: 1
+  },
+  &quot;id&quot;: &quot;dd63a175&quot;,
+  &quot;created_at&quot;: &quot;2026-09-02T15:41:43.929952&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">diagnosed</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;dd63a175&quot;,
+  &quot;root_cause&quot;: &quot;card_expired&quot;,
+  &quot;confidence&quot;: 0.95,
+  &quot;reasoning&quot;: &quot;Matched reason_code=&#x27;card_expired&#x27; for signal type &#x27;subscription_mandate_failure&#x27; to root cause &#x27;card_expired&#x27; via rule table.&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">policy decision</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;dd63a175&quot;,
+  &quot;playbook&quot;: &quot;subscription_mandate&quot;,
+  &quot;escalate&quot;: false,
+  &quot;stop&quot;: false,
+  &quot;stop_reason&quot;: null,
+  &quot;plan&quot;: [
+    &quot;diagnose:card_expired&quot;,
+    &quot;execute:subscription_mandate&quot;
+  ],
+  &quot;channel_override&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">AI agent consulted</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;dd63a175&quot;,
+  &quot;action&quot;: &quot;proceed&quot;,
+  &quot;confidence&quot;: 0.0,
+  &quot;reasoning&quot;: &quot;agent call failed; defaulting to the deterministic decision&quot;,
+  &quot;error&quot;: &quot;&lt;urlopen error Tunnel connection failed: 403 Forbidden&gt;&quot;,
+  &quot;channel&quot;: null,
+  &quot;defer_hours&quot;: 0
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">message_sent:whatsapp</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;to&quot;: &quot;cust_aditya_18&quot;,
+  &quot;message&quot;: &quot;Namaste Aditya Joshi, aapka subscription payment fail ho gaya. Please yahan update karein: https://rzp.io/mock/235ac38af0&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">action</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;signal_id&quot;: &quot;dd63a175&quot;,
+  &quot;playbook&quot;: &quot;subscription_mandate&quot;,
+  &quot;channel&quot;: &quot;whatsapp&quot;,
+  &quot;status&quot;: &quot;sent&quot;,
+  &quot;message_sent&quot;: &quot;Namaste Aditya Joshi, aapka subscription payment fail ho gaya. Please yahan update karein: https://rzp.io/mock/235ac38af0&quot;,
+  &quot;amount_recovered&quot;: 0.0,
+  &quot;details&quot;: {
+    &quot;payment_link&quot;: &quot;https://rzp.io/mock/235ac38af0&quot;,
+    &quot;payment_link_id&quot;: &quot;plink_mock_235ac38af0&quot;,
+    &quot;attempt&quot;: 1,
+    &quot;simulated&quot;: true,
+    &quot;recovery_confirmation&quot;: &quot;pending&quot;
+  },
+  &quot;timestamp&quot;: &quot;2026-09-02T15:41:59.116948&quot;
+}</pre></div><div class="stage "><div class="stage-head"><span class="stage-name">confirmation</span><span class="stage-time">15:41:59</span></div><pre>{
+  &quot;source&quot;: &quot;simulated_gateway_confirmation&quot;,
+  &quot;confirmed&quot;: true,
+  &quot;amount&quot;: 932.31,
+  &quot;reference&quot;: &quot;plink_mock_235ac38af0&quot;
+}</pre></div></div></details><p class="note">Every line above is read straight from audit_log.jsonl &mdash; nothing here is recomputed for display.</p></div></div></body></html>

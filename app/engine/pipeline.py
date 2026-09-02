@@ -14,6 +14,14 @@ from app.config import settings
 def process_signal(
     signal: Signal, now_utc: Optional[datetime] = None, agent_cache: Optional[dict] = None
 ) -> Trace:
+    # The signal itself is the first thing on the record. Without it the trail
+    # could tell you what was decided and what was sent, but not what any of it
+    # concerned -- not the customer, not the amount at risk -- which makes a
+    # "complete audit trail" incomplete in the one dimension a reviewer asks
+    # about first. Everything downstream (scripts/build_dashboard.py included)
+    # can now reconstruct a full trace from the log alone.
+    db.log_event(signal.id, "signal", {**signal.__dict__, "type": signal.type.value})
+
     diagnosis = diagnose(signal)
 
     if diagnosis.confidence < 0.5 and settings.USE_LLM_DIAGNOSIS:
