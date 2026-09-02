@@ -19,6 +19,7 @@ _DEFAULT_STATE: Dict[str, List[Any]] = {
     "contact_history": [],
     "opt_outs": [],
     "promises_to_pay": [],
+    "pending_recoveries": [],
 }
 
 
@@ -111,6 +112,71 @@ def record_promise_to_pay(signal_id: str, customer_id: str, amount: float, promi
         }
     )
     _save_state(state)
+
+
+def record_pending_recovery(
+    signal_id: str, playbook: str, amount: float, reference: str, recovery_probability: float
+) -> None:
+    """Registers that a playbook sent a customer-facing recovery action
+    (a payment link, an invoice reminder) whose actual outcome is not yet
+    known. `reference` is whatever a later confirmation event will be
+    keyed on (a Razorpay payment_link id, or an invoice_id for
+    receivables). `recovery_probability` is the playbook's own
+    root-cause-aware estimate, carried over so the confirmation step can
+    use it -- but critically, drawing against it now happens in a
+    separate, distinctly-logged confirmation step (see
+    app/engine/confirmation.py), not inline inside the playbook, so
+    'recovered' is always the output of an explicit confirmation event
+    rather than the playbook silently deciding its own outcome."""
+    state = _load_state()
+    state["pending_recoveries"].append(
+        {
+            "signal_id": signal_id,
+            "playbook": playbook,
+            "amount": amount,
+            "reference": reference,
+            "recovery_probability": recovery_probability,
+            "confirmed": None,  # None = awaiting confirmation; True/False once resolved
+            "confirmed_via": None,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+    )
+    _save_state(state)
+
+
+def list_unconfirmed_recoveries() -> List[Dict[str, Any]]:
+    state = _load_state()
+    return [r for r in state["pending_recoveries"] if r["confirmed"] is None]
+
+
+def find_pending_recovery_by_reference(reference: str) -> Optional[Dict[str, Any]]:
+    """Looks up a still-unconfirmed pending recovery by its reference (a
+    payment_link id) -- this is how a real Razorpay webhook (see
+    app.engine.confirmation.confirm_from_webhook) figures out which signal
+    a `payment_link.paid` event belongs to."""
+    state = _load_state()
+    for r in state["pending_recoveries"]:
+        if r["reference"] == reference and r["confirmed"] is None:
+            return r
+    return None
+
+
+def confirm_recovery(signal_id: str, confirmed: bool, source: str) -> Optional[Dict[str, Any]]:
+    """Resolves the first still-unconfirmed pending recovery for this
+    signal. `source` records what confirmed it -- e.g.
+    'simulated_gateway_confirmation' for the offline demo path, or
+    'razorpay_webhook' for a real confirmation -- so the audit trail can
+    always show whether a given RECOVERED outcome came from a real
+    external event or a simulated stand-in for one."""
+    state = _load_state()
+    for r in state["pending_recoveries"]:
+        if r["signal_id"] == signal_id and r["confirmed"] is None:
+            r["confirmed"] = confirmed
+            r["confirmed_via"] = source
+            r["confirmed_at"] = datetime.utcnow().isoformat()
+            _save_state(state)
+            return r
+    return None
 
 
 def fetch_audit_log(signal_id: Optional[str] = None) -> List[Dict[str, Any]]:

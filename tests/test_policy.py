@@ -1,8 +1,9 @@
 from datetime import datetime
 
 from app import db
+from app.engine.actions import execute
 from app.engine.policy import decide, _in_quiet_hours
-from app.models import Signal, SignalType, RootCause, Diagnosis
+from app.models import Signal, SignalType, RootCause, Diagnosis, ActionStatus
 
 
 def _signal(stype=SignalType.PAYMENT_FAILURE, amount=1000, customer_id="c1"):
@@ -26,6 +27,21 @@ def test_compliance_sensitive_root_cause_always_escalates_and_stops():
     d = decide(sig, _diag(root_cause=RootCause.INVOICE_DISPUTE))
     assert d.escalate is True
     assert d.stop is True
+
+
+def test_compliance_sensitive_root_cause_action_result_is_escalated_not_stopped():
+    # Regression test: actions.execute() used to check decision.stop before
+    # decision.escalate, so a Decision with both flags set (every
+    # compliance-sensitive escalation) was recorded in the audit trail as
+    # STOPPED, indistinguishable from an ordinary cooldown/quiet-hours skip,
+    # and never counted in reporting's escalated_count. The Decision-level
+    # test above passed the whole time this bug was live, which is exactly
+    # why this asserts on the executed ActionResult instead.
+    sig = _signal()
+    decision = decide(sig, _diag(root_cause=RootCause.INVOICE_DISPUTE))
+    result = execute(sig, decision)
+    assert result.status == ActionStatus.ESCALATED
+    assert result.details["reason"] == "requires_human_review"
 
 
 def test_high_value_signal_escalates_but_does_not_stop():

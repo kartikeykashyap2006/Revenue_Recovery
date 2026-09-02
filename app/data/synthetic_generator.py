@@ -1,95 +1,27 @@
-"""Generates realistic synthetic batches of at-risk-revenue signals across
-all four scenario types, for offline demoing and testing without needing
-live Razorpay traffic."""
-import random
-from datetime import datetime, timedelta
+"""Generates batches of at-risk-revenue Signal objects for offline
+demoing and testing without needing live Razorpay traffic.
+
+This is now a thin wrapper: it generates a raw, unlabeled event stream
+(app.data.raw_events) and runs it through the actual detection layer
+(app.engine.detection) rather than handing out pre-labeled signals
+directly. `n` is the number of underlying raw event-cases simulated, not
+a guaranteed output count -- some fraction of cases resolve on their own
+(a retried payment goes through, a customer comes back and pays, an
+invoice gets settled) and correctly produce no signal at all, since a
+real detection system wouldn't raise an alert for a problem that already
+resolved itself. See app/engine/detection.py for why this split exists.
+"""
+from datetime import datetime
 from typing import List, Optional
 
-from app.models import Signal, SignalType
-
-FIRST_NAMES = [
-    "Aarav", "Vivaan", "Aditya", "Vihaan", "Arjun", "Sai", "Reyansh", "Krishna",
-    "Ishaan", "Rohan", "Ananya", "Diya", "Priya", "Isha", "Kavya", "Meera",
-    "Neha", "Pooja", "Riya", "Sneha",
-]
-LAST_NAMES = [
-    "Sharma", "Verma", "Gupta", "Iyer", "Nair", "Reddy", "Rao", "Mehta",
-    "Kapoor", "Joshi", "Patel", "Singh", "Kulkarni", "Bansal", "Chatterjee",
-]
-
-PAYMENT_FAILURE_CODES = ["insufficient_funds", "card_expired", "risk_declined", "gateway_timeout", "otp_mismatch", "limit_exceeded"]
-CHECKOUT_CODES = ["price_page_exit", "no_upi_available", "checkout_error", "session_timeout"]
-MANDATE_CODES = ["insufficient_funds", "mandate_expired", "card_expired", "bank_declined"]
-RECEIVABLE_CODES = ["no_response", "disputed", "cash_flow"]
+from app.data.raw_events import generate_raw_event_stream
+from app.engine.detection import detect_signals
+from app.models import Signal
 
 
-def _name() -> str:
-    return f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}"
-
-
-def _lang() -> str:
-    return random.choices(["en", "hi"], weights=[0.45, 0.55])[0]
-
-
-def _customer_id(name: str, idx: int) -> str:
-    return f"cust_{name.split()[0].lower()}_{idx}"
-
-
-def _phone() -> str:
-    # Realistic-looking Indian mobile number. Razorpay's API rejects
-    # obviously-fake numbers (e.g. all-repeating digits like 9999999999),
-    # so this deliberately avoids that pattern.
-    return f"{random.choice('6789')}{''.join(random.choices('0123456789', k=9))}"
-
-
-def _email(name: str) -> str:
-    first = name.split()[0].lower()
-    return f"{first}.test.{random.randint(100, 999)}@example.com"
-
-
-def generate_batch(n: int = 60, seed: Optional[int] = None) -> List[Signal]:
-    if seed is not None:
-        random.seed(seed)
-
-    signals: List[Signal] = []
-    for i in range(n):
-        stype = random.choices(
-            list(SignalType),
-            weights=[0.35, 0.3, 0.2, 0.15],
-        )[0]
-        name = _name()
-        cust_id = _customer_id(name, i)
-        lang = _lang()
-
-        if stype == SignalType.PAYMENT_FAILURE:
-            amount = round(random.uniform(299, 15000), 2)
-            code = random.choice(PAYMENT_FAILURE_CODES)
-            meta = {"reason_code": code, "payment_method": random.choice(["card", "upi", "netbanking"])}
-        elif stype == SignalType.CHECKOUT_ABANDONMENT:
-            amount = round(random.uniform(499, 25000), 2)
-            code = random.choice(CHECKOUT_CODES)
-            meta = {"reason_code": code, "checkout_id": f"chk_{i}"}
-        elif stype == SignalType.SUBSCRIPTION_MANDATE_FAILURE:
-            amount = round(random.uniform(199, 2999), 2)
-            code = random.choice(MANDATE_CODES)
-            meta = {"reason_code": code, "attempt_count": random.randint(1, 3)}
-        else:  # OVERDUE_RECEIVABLE
-            amount = round(random.uniform(15000, 400000), 2)
-            code = random.choice(RECEIVABLE_CODES)
-            due_date = (datetime.utcnow() - timedelta(days=random.randint(3, 45))).date().isoformat()
-            meta = {"reason_code": code, "due_date": due_date, "invoice_id": f"inv_{i}"}
-
-        meta["phone"] = _phone()
-        meta["email"] = _email(name)
-
-        signals.append(
-            Signal(
-                type=stype,
-                customer_id=cust_id,
-                customer_name=name,
-                amount=amount,
-                language_pref=lang,
-                metadata=meta,
-            )
-        )
-    return signals
+def generate_batch(
+    n: int = 60, seed: Optional[int] = None, now_utc: Optional[datetime] = None
+) -> List[Signal]:
+    now_utc = now_utc or datetime.utcnow()
+    events = generate_raw_event_stream(n_cases=n, seed=seed, now_utc=now_utc)
+    return detect_signals(events, now_utc=now_utc)

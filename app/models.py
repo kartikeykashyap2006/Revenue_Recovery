@@ -94,6 +94,20 @@ class ActionResult:
 
 
 @dataclass
+class AgentRecommendation:
+    """The AI recovery-decision agent's output for one signal that has
+    already cleared every deterministic compliance guardrail. `action` is
+    always one of a fixed, bounded set (see app/engine/agent.py) -- the
+    agent proposes, the policy/execution layer disposes; it can never
+    invent an action outside this set or bypass a compliance stop."""
+    signal_id: str
+    action: str  # "proceed" | "hold" | "escalate"
+    confidence: float
+    reasoning: str
+    error: Optional[str] = None
+
+
+@dataclass
 class Trace:
     """Full audit trace for one signal moving through the pipeline."""
     signal: Signal

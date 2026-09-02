@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.data.synthetic_generator import generate_batch
 from app.engine.pipeline import process_batch
 from app.reporting.batch_report import generate_report, print_report, save_report
-from app.db import _DEFAULT_STATE, _save_state, _AUDIT_LOG_PATH
+from app.db import _DEFAULT_STATE, _save_state, _AUDIT_LOG_PATH, log_event
 
 
 def main():
@@ -45,7 +45,17 @@ def main():
         open(_AUDIT_LOG_PATH, "w").close()
         print("Reset audit trail and contact history for a fresh run.\n")
 
-    signals = generate_batch(n=args.n, seed=args.seed)
+    signals = generate_batch(n=args.n, seed=args.seed, now_utc=simulated_now)
+    print(
+        f"Detected {len(signals)} at-risk signal(s) from {args.n} raw event-case(s) "
+        f"({args.n - len(signals)} resolved on their own -- no signal needed).\n"
+    )
+    # Logged to the audit trail (not just printed) so scripts/system_metrics.py
+    # can report the detection funnel across runs, not only the most recent one.
+    log_event("__batch__", "batch_detection", {
+        "raw_cases": args.n, "signals_detected": len(signals),
+        "resolved_on_their_own": args.n - len(signals),
+    })
     traces = process_batch(signals, now_utc=simulated_now)
     report = generate_report(traces)
 

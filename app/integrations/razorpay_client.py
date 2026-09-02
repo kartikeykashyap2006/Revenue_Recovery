@@ -1,9 +1,10 @@
 """Thin wrapper around the Razorpay test-mode API.
 
-Falls back to a local mock when RAZORPAY_KEY_ID/SECRET aren't set yet, so
-the rest of the engine can be built and demoed before real test-mode keys
-are wired up. Once keys are added to .env, real payment links are created
-against Razorpay's test-mode sandbox (no real money moves in test mode).
+Falls back to a local mock unless USE_LIVE_RAZORPAY=true *and*
+RAZORPAY_KEY_ID/SECRET are set. Having keys in .env is not enough on its
+own -- USE_LIVE_RAZORPAY is the explicit opt-in switch, so a batch run
+stays safely mocked until you deliberately flip it on, even if real
+test-mode keys are sitting in .env (e.g. left over from seed_test_data.py).
 """
 import time
 import uuid
@@ -35,8 +36,12 @@ def _get_client():
     return _client
 
 
-def _has_credentials() -> bool:
-    return bool(settings.RAZORPAY_KEY_ID and settings.RAZORPAY_KEY_SECRET)
+def _should_use_live_client() -> bool:
+    return bool(
+        settings.USE_LIVE_RAZORPAY
+        and settings.RAZORPAY_KEY_ID
+        and settings.RAZORPAY_KEY_SECRET
+    )
 
 
 def _throttle() -> None:
@@ -65,7 +70,7 @@ def _call_with_rate_limit_retry(fn):
 def create_recovery_payment_link(signal: Signal) -> Dict[str, Any]:
     """Create a payment link for the customer to complete/retry payment.
     Returns a dict with at least `short_url` and `live` (bool)."""
-    if not _has_credentials():
+    if not _should_use_live_client():
         fake_id = uuid.uuid4().hex[:10]
         return {
             "id": f"plink_mock_{fake_id}",
@@ -92,7 +97,7 @@ def create_recovery_payment_link(signal: Signal) -> Dict[str, Any]:
 
 
 def fetch_payment_link_status(link_id: str) -> Dict[str, Any]:
-    if not _has_credentials() or link_id.startswith("plink_mock_"):
+    if not _should_use_live_client() or link_id.startswith("plink_mock_"):
         return {"status": "unknown", "live": False}
     client = _get_client()
     link = _call_with_rate_limit_retry(lambda: client.payment_link.fetch(link_id))

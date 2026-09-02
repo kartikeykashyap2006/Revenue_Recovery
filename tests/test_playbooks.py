@@ -19,9 +19,16 @@ def test_payment_retry_playbook_always_sends_a_link_and_message(monkeypatch):
     )
     decision = decide(sig, Diagnosis(signal_id=sig.id, root_cause=RootCause.CARD_EXPIRED, confidence=0.97, reasoning="x"))
     result = execute(sig, decision)
-    assert result.status in (ActionStatus.SENT, ActionStatus.RECOVERED)
+    # A playbook only ever sends -- it never decides "recovered" for
+    # itself. See app/engine/confirmation.py for where RECOVERED actually
+    # gets decided, as a separate, distinctly-audited step.
+    assert result.status == ActionStatus.SENT
+    assert result.amount_recovered == 0.0
     assert result.message_sent is not None
     assert "rzp.io/mock" in result.details["payment_link"]
+
+    pending = db.list_unconfirmed_recoveries()
+    assert any(r["signal_id"] == sig.id and r["amount"] == 2500 for r in pending)
 
 
 def test_hinglish_message_used_when_language_pref_is_hi(monkeypatch):
@@ -76,3 +83,24 @@ def test_playbook_exception_is_caught_and_becomes_failed_result_not_a_crash(monk
     result = execute(sig, decision)
     assert result.status == ActionStatus.FAILED
     assert "simulated Razorpay outage" in result.details["error"]
+
+
+def test_one_signals_full_audit_trace_includes_the_outreach_message(monkeypatch):
+    # Regression test for a broken demo path: app/integrations/messaging.py
+    # used to file message_sent events under the CUSTOMER id while every
+    # other stage of the same signal was filed under the SIGNAL id, so
+    # `inspect_audit.py --signal-id <id>` -- the walk-one-trace-end-to-end
+    # beat in docs/pitch_outline.md -- showed diagnosis/decision/action/
+    # confirmation but silently dropped the actual message that was sent.
+    monkeypatch.setattr(policy, "_in_quiet_hours", lambda *a, **k: False)
+    sig = Signal(
+        type=SignalType.PAYMENT_FAILURE, customer_id="c_trace", customer_name="Trace Test",
+        amount=1500, metadata={"reason_code": "card_expired"},
+    )
+    decision = decide(sig, Diagnosis(signal_id=sig.id, root_cause=RootCause.CARD_EXPIRED, confidence=0.97, reasoning="x"))
+    execute(sig, decision)
+
+    stages = [e["stage"] for e in db.fetch_audit_log(sig.id)]
+    assert any(s.startswith("message_sent:") for s in stages), (
+        f"a signal's own trace must include the outreach message sent for it; got {stages}"
+    )
