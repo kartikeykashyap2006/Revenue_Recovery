@@ -39,10 +39,13 @@ hours is deliberately bypassed by `--simulate-time`. If you want to show a
 `stopped` case live, run the batch twice in a row *without* `--reset` on
 the same seed -- the second pass's repeat contacts will trigger cooldown.
 
-`--simulate-time` only controls what "now" means for the quiet-hours check
-(so the demo isn't at the mercy of what time you happen to be recording) —
-every other guardrail (opt-outs, escalation, max-contact, cooldown) runs on
-real logic either way.
+`--simulate-time` controls what "now" means for every time-based check --
+quiet hours and the cooldown between attempts -- so the demo isn't at the
+mercy of what time you happen to be recording, and so the passage of days is
+demonstrable. Every other guardrail (opt-outs, escalation, max-contact) is
+time-independent and runs identically either way. To show cooldown live: run
+the same batch twice a simulated day apart (both send), then a third time a
+few hours later (stopped on cooldown).
 
 ## 1. Problem (30s)
 

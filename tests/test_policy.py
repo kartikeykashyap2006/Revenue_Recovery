@@ -84,3 +84,34 @@ def test_quiet_hours_uses_ist_not_utc():
     # 10:00 UTC == 15:30 IST -- squarely inside business hours, not quiet.
     afternoon_ist_in_utc = datetime(2026, 1, 1, 10, 0)
     assert _in_quiet_hours(afternoon_ist_in_utc) is False
+
+
+def test_cooldown_is_measured_against_the_batch_clock_not_the_wall_clock(monkeypatch):
+    # Regression test: cooldown used datetime.utcnow() while quiet hours used
+    # now_utc, so a simulated run could never show a cooldown expiring --
+    # contacts written at real wall-clock time always looked seconds old no
+    # matter what date the batch claimed to be running on. Two clocks in one
+    # pipeline is the bug; this pins them together.
+    from datetime import datetime, timedelta
+
+    import app.engine.policy as policy
+
+    monkeypatch.setattr(policy, "_in_quiet_hours", lambda *a, **k: False)
+    day1 = datetime(2026, 3, 1, 10, 0)
+    sig = Signal(
+        type=SignalType.PAYMENT_FAILURE, customer_id="c_cool", customer_name="Test",
+        amount=1000, metadata={"reason_code": "card_expired"},
+    )
+    diag = Diagnosis(signal_id=sig.id, root_cause=RootCause.CARD_EXPIRED, confidence=0.97, reasoning="x")
+
+    db.record_contact("c_cool", "old_signal", "sms", occurred_at=day1.isoformat())
+
+    # One hour later on the batch's clock: still inside the 24h cooldown.
+    soon = decide(sig, diag, now_utc=day1 + timedelta(hours=1))
+    assert soon.stop is True
+    assert soon.stop_reason == "cooldown_active"
+
+    # A full day later on the batch's clock: the cooldown has expired, even
+    # though in real wall-clock terms the contact was written moments ago.
+    later = decide(sig, diag, now_utc=day1 + timedelta(hours=25))
+    assert later.stop is False, "a simulated day must actually clear the cooldown"

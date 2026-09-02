@@ -62,14 +62,24 @@ def log_event(signal_id: str, stage: str, payload: Dict[str, Any]) -> None:
         f.write(json.dumps(entry, default=str) + "\n")
 
 
-def record_contact(customer_id: str, signal_id: str, channel: str) -> None:
+def record_contact(
+    customer_id: str, signal_id: str, channel: str, occurred_at: Optional[str] = None
+) -> None:
+    """`occurred_at` is the batch's clock, not the wall clock.
+
+    Cooldown and max-contact-attempts are evaluated against these timestamps,
+    so if a simulated run (scripts/run_batch.py --simulate-time) writes real
+    wall-clock times here while policy.decide() reads a simulated "now", the
+    two disagree and every repeat contact looks like it happened seconds ago
+    no matter what date the run claims to be. Both sides use the same clock.
+    """
     state = _load_state()
     state["contact_history"].append(
         {
             "customer_id": customer_id,
             "signal_id": signal_id,
             "channel": channel,
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": occurred_at or datetime.utcnow().isoformat(),
         }
     )
     _save_state(state)

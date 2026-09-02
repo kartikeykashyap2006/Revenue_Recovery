@@ -43,7 +43,10 @@ def process_signal(
     db.log_event(signal.id, "action", action.__dict__)
 
     if action.channel.value != "none":
-        db.record_contact(signal.customer_id, signal.id, action.channel.value)
+        db.record_contact(
+            signal.customer_id, signal.id, action.channel.value,
+            occurred_at=(now_utc or datetime.utcnow()).isoformat(),
+        )
 
     return Trace(signal=signal, diagnosis=diagnosis, decision=decision, action=action)
 

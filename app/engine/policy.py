@@ -79,8 +79,13 @@ def decide(signal: Signal, diagnosis: Diagnosis, now_utc: Optional[datetime] = N
             stop_reason="max_contact_attempts_reached", plan=plan,
         )
 
+    # Same clock as the quiet-hours check below. Using datetime.utcnow() here
+    # while quiet hours honours now_utc meant a simulated run could never show
+    # a cooldown expiring: contacts written at real time always looked seconds
+    # old, whatever date the batch claimed to be running on.
+    reference_now = now_utc or datetime.utcnow()
     last_contact = db.get_last_contact_time(signal.customer_id)
-    if last_contact and datetime.utcnow() - last_contact < timedelta(hours=settings.COOLDOWN_HOURS_BETWEEN_ATTEMPTS):
+    if last_contact and reference_now - last_contact < timedelta(hours=settings.COOLDOWN_HOURS_BETWEEN_ATTEMPTS):
         return Decision(
             signal_id=signal.id, playbook=playbook, escalate=False, stop=True,
             stop_reason="cooldown_active", plan=plan,
