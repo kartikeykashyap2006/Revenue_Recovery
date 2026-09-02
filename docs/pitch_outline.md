@@ -83,6 +83,12 @@ recovered, recovery rate, breakdown by scenario type).
 
 ## 3. Compliance & guardrails (1 min)
 
+Worth one line on promise-to-pay, since it shows the system keeping track of
+something over time rather than within a single batch: when a customer commits
+to a date, run the batch again after that date with `--simulate-time` and the
+unmet promise comes back on its own and is escalated to a human -- a broken
+commitment buys a person, never another automated chase.
+
 Pull one `escalated` trace (an `invoice_dispute` or a high-value signal)
 and one `stopped` trace (cooldown/quiet-hours/opt-out) from
 `reports/traces.json`, and show their audit entries with

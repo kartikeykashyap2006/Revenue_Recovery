@@ -82,6 +82,56 @@ def release_due_deferrals(now_utc=None) -> List[Signal]:
     return released
 
 
+def resolve_due_promises(now_utc=None) -> List[Signal]:
+    """Judges every promise-to-pay whose date has arrived, and returns the
+    signals whose promise was broken so they re-enter the batch.
+
+    This is what makes it a *tracker* rather than a log line. A promise was
+    previously written with fulfilled=False and never read again -- no
+    follow-up, nothing ever marking it kept or broken -- so the feature named
+    in the brief did nothing. Now, on the promised date:
+
+      kept    -- the recovery was actually confirmed (real money, from the
+                 confirmation stage, not merely "we sent something")
+      broken  -- the date passed with no confirmed payment
+
+    A broken promise is deliberately NOT another automated chase. The customer
+    made an explicit commitment and missed it, which is a credit/relationship
+    signal rather than a reminder problem, so the signal comes back carrying
+    `promise_broken` and app/engine/policy.py escalates it to a human. The
+    agent is never handed a reason to contact someone more.
+    """
+    released: List[Signal] = []
+    for promise in db.list_due_promises(now_utc):
+        signal_id = promise.get("signal_id")
+        kept = db.was_recovery_confirmed(signal_id)
+        db.resolve_promise(signal_id, kept=kept)
+        db.log_event(
+            signal_id,
+            "promise_kept" if kept else "promise_broken",
+            {
+                "promised_date": promise["promised_date"],
+                "promised_amount": promise.get("promised_amount"),
+                "outcome": "kept" if kept else "broken",
+                "judged_against": "a confirmed recovery" if kept else "no confirmed payment",
+            },
+        )
+        if kept:
+            continue
+        raw = dict(promise.get("signal") or {})
+        if not raw:
+            continue  # older record without the signal body -- nothing to re-run
+        try:
+            raw["type"] = SignalType(raw["type"])
+            raw["metadata"] = {**raw.get("metadata", {}),
+                               "promise_broken": True,
+                               "promised_date": promise["promised_date"]}
+            released.append(Signal(**raw))
+        except (ValueError, TypeError):
+            continue
+    return released
+
+
 def prefetch_agent_recommendations(
     signals: List[Signal], now_utc: Optional[datetime] = None, show_progress: bool = False
 ) -> dict:
@@ -173,6 +223,18 @@ def process_batch(
                 flush=True,
             )
         signals = list(due) + list(signals)
+
+    # Promises whose date has arrived are judged against confirmed money;
+    # broken ones re-enter here and are escalated by policy.
+    broken = resolve_due_promises(now_utc)
+    if broken:
+        if show_progress:
+            print(
+                f"  {len(broken)} promise(s) to pay came due and were not kept "
+                f"-- escalating for human review.",
+                flush=True,
+            )
+        signals = list(broken) + list(signals)
 
     # Network waits happen here, concurrently, before the sequential loop --
     # see prefetch_agent_recommendations for why the loop itself stays serial.

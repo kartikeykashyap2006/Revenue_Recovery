@@ -1,6 +1,8 @@
 import random
 from datetime import datetime, timedelta
 
+from typing import Optional
+
 from app import db
 from app.models import Signal, Decision, ActionResult, Channel, ActionStatus
 from app.integrations import messaging
@@ -15,7 +17,7 @@ RECOVERY_PROBABILITY = {
 }
 
 
-def run(signal: Signal, decision: Decision) -> ActionResult:
+def run(signal: Signal, decision: Decision, now_utc: Optional[datetime] = None) -> ActionResult:
     due_date = signal.metadata.get("due_date", "recently")
     message = receivable_reminder_message(signal, due_date)
     # The agent may pick the channel (validated against this playbook's own
@@ -42,8 +44,11 @@ def run(signal: Signal, decision: Decision) -> ActionResult:
     # decision that doesn't exist at send-time anymore.
     promised = False
     if random.random() < 0.3:
-        promised_date = (datetime.utcnow() + timedelta(days=7)).date().isoformat()
-        db.record_promise_to_pay(signal.id, signal.customer_id, signal.amount, promised_date)
+        reference_now = now_utc or datetime.utcnow()
+        promised_date = (reference_now + timedelta(days=7)).isoformat()
+        db.record_promise_to_pay(
+            {**signal.__dict__, "type": signal.type.value}, promised_date
+        )
         promised = True
 
     return ActionResult(

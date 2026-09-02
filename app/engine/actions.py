@@ -77,7 +77,11 @@ def execute(signal: Signal, decision: Decision, now_utc: Optional[datetime] = No
     # FAILED result for that one signal, fully logged, and processing
     # continues for everyone else.
     try:
-        return handler(signal, decision)
+        # Playbooks get the batch's clock too: a promise-to-pay dated from
+        # the wall clock while everything else runs on simulated time would
+        # never come due in a demo -- the same two-clock bug that made
+        # cooldown un-demonstrable.
+        return handler(signal, decision, now_utc=now_utc)
     except Exception as exc:
         return ActionResult(
             signal_id=signal.id, playbook=decision.playbook, channel=Channel.NONE,

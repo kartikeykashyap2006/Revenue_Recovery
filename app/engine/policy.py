@@ -57,6 +57,19 @@ def decide(signal: Signal, diagnosis: Diagnosis, now_utc: Optional[datetime] = N
             stop_reason="customer_opted_out", plan=plan,
         )
 
+    # A customer who explicitly committed to a date and missed it is a
+    # credit/relationship judgement, not a reminder problem -- so a broken
+    # promise buys a human, never another automated chase. Placed with the
+    # compliance guardrails so it is settled before the AI layer is ever
+    # consulted (see app/engine/agent.py, which is not called for a decision
+    # that already escalates).
+    if signal.metadata.get("promise_broken"):
+        plan.append("escalate:broken_promise_to_pay")
+        return Decision(
+            signal_id=signal.id, playbook=playbook, escalate=True, stop=True,
+            stop_reason="broken_promise_to_pay", plan=plan,
+        )
+
     if diagnosis.root_cause in ALWAYS_ESCALATE:
         plan.append("escalate:compliance_sensitive_root_cause")
         return Decision(

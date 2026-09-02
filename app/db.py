@@ -110,19 +110,68 @@ def record_opt_out(customer_id: str) -> None:
     _save_state(state)
 
 
-def record_promise_to_pay(signal_id: str, customer_id: str, amount: float, promised_date: str) -> None:
+def record_promise_to_pay(signal_dict: Dict[str, Any], promised_date: str) -> None:
+    """Records that a customer committed to paying by a date.
+
+    The whole signal is stored, not just its id, for the same reason
+    deferrals store it: when the promised date arrives the system has to be
+    able to put that case back through the pipeline. Previously a promise was
+    written with fulfilled=False and then never read by anything -- no
+    follow-up, nothing ever marked it kept or broken -- so "promise-to-pay
+    tracker" tracked nothing. See app.engine.pipeline.resolve_due_promises.
+    """
     state = _load_state()
     state["promises_to_pay"].append(
         {
-            "signal_id": signal_id,
-            "customer_id": customer_id,
-            "promised_amount": amount,
+            "signal": signal_dict,
+            "signal_id": signal_dict.get("id"),
+            "customer_id": signal_dict.get("customer_id"),
+            "promised_amount": signal_dict.get("amount"),
             "promised_date": promised_date,
+            "status": "pending",   # pending -> kept | broken
             "fulfilled": False,
             "created_at": datetime.utcnow().isoformat(),
         }
     )
     _save_state(state)
+
+
+def list_due_promises(now_utc: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    """Promises whose date has arrived and which nothing has resolved yet."""
+    now_utc = now_utc or datetime.utcnow()
+    state = _load_state()
+    due = []
+    for p in state["promises_to_pay"]:
+        if p.get("status", "pending") != "pending":
+            continue
+        if datetime.fromisoformat(p["promised_date"]) <= now_utc:
+            due.append(p)
+    return due
+
+
+def resolve_promise(signal_id: str, kept: bool) -> Optional[Dict[str, Any]]:
+    """Marks a promise kept or broken, exactly once."""
+    state = _load_state()
+    for p in state["promises_to_pay"]:
+        if p.get("signal_id") == signal_id and p.get("status", "pending") == "pending":
+            p["status"] = "kept" if kept else "broken"
+            p["fulfilled"] = bool(kept)
+            p["resolved_at"] = datetime.utcnow().isoformat()
+            _save_state(state)
+            return p
+    return None
+
+
+def was_recovery_confirmed(signal_id: str) -> bool:
+    """Did this signal's outreach actually convert? Read from the same
+    pending-recovery records the confirmation stage resolves, so a promise is
+    judged against real confirmed money rather than against whether we sent
+    something."""
+    state = _load_state()
+    return any(
+        r["signal_id"] == signal_id and r.get("confirmed") is True
+        for r in state["pending_recoveries"]
+    )
 
 
 def record_pending_recovery(

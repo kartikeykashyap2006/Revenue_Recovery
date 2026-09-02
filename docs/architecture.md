@@ -100,7 +100,7 @@ exists.
 | Failed-subscription recovery | `subscription_mandate` playbook (staged retry sequencing) |
 | B2B receivables chaser | `receivables_chaser` playbook |
 | Mandate retry sequencer | Built into `subscription_mandate` (attempt-aware retry probability + `MAX_CONTACT_ATTEMPTS`) |
-| Promise-to-pay tracker | `db.record_promise_to_pay` inside `receivables_chaser` |
+| Promise-to-pay tracker | `receivables_chaser` records the commitment; `pipeline.resolve_due_promises` judges it when the date arrives -- kept if a confirmed recovery exists, broken otherwise -- and a broken promise re-enters the batch and is escalated to a human by `policy.decide`. See "Promise-to-pay" below. |
 | Hinglish voice recovery | Implemented as a **bilingual (Hindi/English) text-based recovery channel** (`app/playbooks/messaging_templates.py`) rather than live voice calls. Real-time speech (STT/TTS) was judged too time-risky to finish reliably in the buildathon window; a bilingual WhatsApp/SMS-style channel captures the same "meet the customer in their language" idea without that risk. |
 
 ## Compliant escalation and stopping rules
@@ -273,6 +273,42 @@ Storing the entire signal rather than just its id matters: synthetic batches
 are regenerated per run, so an id-only deferral would be recorded and then
 quietly never acted on -- a promise the system doesn't keep, which is the
 exact class of claim the rest of this design exists to avoid.
+
+## Promise-to-pay: a commitment the system actually follows up on
+
+`receivables_chaser` sometimes records that a customer committed to paying by
+a date. For a long time that was the whole feature: the promise was written
+with `fulfilled: False` and then **nothing ever read it again** -- no
+follow-up, nothing marking it kept or broken. A "tracker" that tracked
+nothing, and one of the brief's own named directions.
+
+`pipeline.resolve_due_promises` closes it. On the promised date, each pending
+promise is judged against confirmed money -- `db.was_recovery_confirmed`
+reads the same pending-recovery record the confirmation stage resolves, so
+"kept" means the payment actually arrived, not merely that an outreach was
+sent:
+
+- **kept** -- logged as a `promise_kept` audit event; the case is closed and
+  the customer is not contacted again.
+- **broken** -- logged as `promise_broken`; the signal re-enters the batch
+  carrying `promise_broken` in its metadata.
+
+A broken promise is deliberately **not** another automated chase. A customer
+who made an explicit commitment and missed it is a credit and relationship
+judgement, not a reminder problem, so `policy.decide` escalates it to a human
+(`stop_reason="broken_promise_to_pay"`), alongside the other compliance
+guardrails and therefore before the AI layer is ever consulted. Nothing in
+this feature gives the system a reason to contact anyone *more*.
+
+The promise date is set from the batch's clock, not the wall clock -- with
+`--simulate-time` a promise made on day 0 genuinely comes due on day 7, which
+is the only way the follow-up is demonstrable at all.
+
+Verified end to end on generated data: two promises made in a day-0 batch,
+both unmet by day 8, both surfacing as `escalated` with
+`plan: [diagnose:forgot, escalate:broken_promise_to_pay]` in a batch that was
+fed no new signals at all -- and judged exactly once, so a later run does not
+replay them.
 
 ## Recovery confirmation: a separate, audited step
 

@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Optional
+
 from app import db
 from app.models import Signal, Decision, ActionResult, Channel, ActionStatus
 from app.integrations import razorpay_client, messaging
@@ -13,7 +16,7 @@ RECOVERY_PROBABILITY_BY_CAUSE = {
 }
 
 
-def run(signal: Signal, decision: Decision) -> ActionResult:
+def run(signal: Signal, decision: Decision, now_utc: Optional[datetime] = None) -> ActionResult:
     link = razorpay_client.create_recovery_payment_link(signal)
     message = mandate_retry_message(signal, link["short_url"])
     # The agent may pick the channel (validated against this playbook's own
