@@ -6,9 +6,11 @@ Run with: uvicorn app.main:app --reload
 import hashlib
 import hmac
 import json
+from datetime import datetime
 from typing import Optional
 
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import db
 from app.config import settings
@@ -16,8 +18,23 @@ from app.data.synthetic_generator import generate_batch
 from app.engine.pipeline import process_batch
 from app.engine.confirmation import confirm_from_webhook
 from app.reporting.batch_report import generate_report, save_report
+from app.reporting.dashboard_data import build_payload
 
 app = FastAPI(title="AI Revenue Recovery Agent")
+
+# The TypeScript frontend runs on its own dev server (Vite, :5173) and calls
+# this API cross-origin. Origins are listed explicitly rather than "*": this
+# API can trigger batches and returns customer contact details, so a wildcard
+# would let any page a developer happens to have open drive it.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173", "http://127.0.0.1:5173",   # vite dev server
+        "http://localhost:4173", "http://127.0.0.1:4173",   # vite preview
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -37,6 +54,31 @@ def run_batch(n: int = 60, seed: Optional[int] = None):
     report = generate_report(traces)
     save_report(report)
     return report
+
+
+@app.get("/api/dashboard")
+def dashboard():
+    """Everything the frontend renders, computed once in
+    app/reporting/dashboard_data.py -- the same function the offline HTML
+    dashboard uses, so the two surfaces can never disagree about a run."""
+    return build_payload()
+
+
+@app.post("/api/run-batch")
+def api_run_batch(n: int = 25, seed: Optional[int] = None, simulate_time: Optional[str] = None):
+    """Runs a batch and returns the fresh dashboard payload.
+
+    Synchronous on purpose: at demo sizes a batch is seconds, and a job queue
+    would be machinery with nothing to do. It is also why n is small by
+    default -- with the AI agent on, every signal that clears the guardrails
+    makes a real model call.
+    """
+    now_utc = datetime.fromisoformat(simulate_time) if simulate_time else None
+    signals = generate_batch(n=n, seed=seed, now_utc=now_utc)
+    traces = process_batch(signals, now_utc=now_utc, show_progress=False)
+    report = generate_report(traces)
+    save_report(report)
+    return build_payload()
 
 
 @app.get("/audit-log")

@@ -5,8 +5,11 @@ __pycache__/
 venv/
 *.db
 .DS_Store
-reports/*.json
-reports/*.html
+# A pattern containing a slash is anchored to this file's directory, so
+# `reports/*.json` would only ever match at the repo root -- and the
+# generated reports now live in backend/reports/.
+**/reports/*.json
+**/reports/*.html
 # Generated deliverables, not sources: the dashboard is rebuilt from the audit
 # trail by scripts/build_dashboard.py, and the share zip is produced by
 # `git archive` -- committing either bloats the repo (and a committed zip ends
@@ -16,3 +19,8 @@ audit_log.jsonl
 state.json
 audit_trail.db
 audit_trail.db-journal
+
+# Frontend build output and deps (frontend/.gitignore covers these too; kept
+# here so a checkout from the repo root never stages them by accident).
+node_modules/
+frontend/dist/

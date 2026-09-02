@@ -1,5 +1,10 @@
 # Architecture — AI Revenue Recovery Agent
 
+> Code paths in this document (`app/…`, `scripts/…`, `tests/…`) are relative
+> to the `backend/` folder. The TypeScript UI lives in `frontend/` and renders
+> the payload built by `app/reporting/dashboard_data.py`, which is the same
+> function the offline HTML dashboard uses.
+
 ## Problem
 
 Revenue leaks out of a payments business through several different doors at
