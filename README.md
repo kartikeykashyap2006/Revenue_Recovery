@@ -90,6 +90,13 @@ actually changed the outcome:
 python scripts/inspect_audit.py --n 20   # look for "stage": "ai_recommendation"
 ```
 
+Beyond proceed/hold/escalate, the agent also shapes *how* the outreach
+happens: it picks the channel (only from the ones that playbook actually
+supports) and can postpone contact by up to 24 hours. A postponed signal is
+persisted and re-enters a later batch, where every guardrail is evaluated
+again against the later clock -- so deferring can delay contact but never
+pre-authorise it. See "What the agent decides" in docs/architecture.md.
+
 Note: with `USE_LLM_DIAGNOSIS=true` too, the synthetic generator
 occasionally (5% of signals) produces a reason code no rule table
 recognizes, so the low-confidence diagnosis fallback in

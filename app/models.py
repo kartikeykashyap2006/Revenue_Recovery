@@ -48,6 +48,11 @@ class ActionStatus(str, Enum):
     ESCALATED = "escalated"
     STOPPED = "stopped"
     SKIPPED = "skipped"
+    # Outreach the agent judged premature right now and scheduled for later.
+    # A deferred signal is persisted and re-enters a future batch, where it
+    # goes through EVERY guardrail again from scratch -- deferral delays
+    # contact, it never pre-authorises it.
+    DEFERRED = "deferred"
 
 
 @dataclass
@@ -79,6 +84,13 @@ class Decision:
     stop: bool
     stop_reason: Optional[str]
     plan: List[str] = field(default_factory=list)
+    # Set only by the AI agent (app/engine/agent.py), and only within limits
+    # the deterministic layer enforces: `channel_override` must be one of the
+    # channels the assigned playbook actually supports, and `defer_hours` is
+    # clamped to a non-negative maximum so the agent can postpone outreach
+    # but never bring it forward.
+    channel_override: Optional[str] = None
+    defer_hours: int = 0
 
 
 @dataclass
@@ -105,6 +117,11 @@ class AgentRecommendation:
     confidence: float
     reasoning: str
     error: Optional[str] = None
+    # How to recover, not just whether. Both are advisory and both are
+    # validated/clamped by the deterministic layer before they can affect
+    # anything -- see app/engine/agent.py.
+    channel: Optional[str] = None   # must be a channel the playbook supports
+    defer_hours: int = 0            # >= 0; postpone outreach by this many hours
 
 
 @dataclass

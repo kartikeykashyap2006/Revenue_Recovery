@@ -20,6 +20,7 @@ _DEFAULT_STATE: Dict[str, List[Any]] = {
     "opt_outs": [],
     "promises_to_pay": [],
     "pending_recoveries": [],
+    "deferred_signals": [],
 }
 
 
@@ -192,3 +193,53 @@ def fetch_audit_log(signal_id: Optional[str] = None) -> List[Dict[str, Any]]:
             if signal_id is None or entry["signal_id"] == signal_id:
                 entries.append(entry)
     return entries
+
+
+def record_deferred_signal(signal_dict: Dict[str, Any], not_before: str, reason: str) -> None:
+    """Persists a signal the AI agent judged premature to contact right now,
+    so a LATER batch can pick it up once `not_before` has passed.
+
+    The whole signal is stored, not just its id, because synthetic batches
+    are regenerated per run -- without this the deferral would be recorded
+    and then quietly never acted on, which is exactly the kind of claim
+    this system is not allowed to make. See
+    app.engine.pipeline.process_batch, which loads due deferrals and puts
+    them through the FULL pipeline again (every guardrail re-evaluated
+    against the later clock), so deferring can only ever postpone contact.
+    """
+    state = _load_state()
+    state["deferred_signals"].append(
+        {
+            "signal": signal_dict,
+            "not_before": not_before,
+            "reason": reason,
+            "released": False,
+            "created_at": datetime.utcnow().isoformat(),
+        }
+    )
+    _save_state(state)
+
+
+def list_due_deferred_signals(now_utc: Optional[datetime] = None) -> List[Dict[str, Any]]:
+    """Deferrals whose wait has elapsed as of `now_utc`, still unreleased."""
+    now_utc = now_utc or datetime.utcnow()
+    state = _load_state()
+    due = []
+    for record in state["deferred_signals"]:
+        if record.get("released"):
+            continue
+        if datetime.fromisoformat(record["not_before"]) <= now_utc:
+            due.append(record)
+    return due
+
+
+def release_deferred_signal(signal_id: str) -> bool:
+    """Marks a deferral as released so it is picked up exactly once."""
+    state = _load_state()
+    for record in state["deferred_signals"]:
+        if not record.get("released") and record["signal"].get("id") == signal_id:
+            record["released"] = True
+            record["released_at"] = datetime.utcnow().isoformat()
+            _save_state(state)
+            return True
+    return False

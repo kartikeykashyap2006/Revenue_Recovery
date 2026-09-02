@@ -103,6 +103,17 @@ not just annotated it. `app/engine/agent.py` has the full bounded-action
 design; if no key is configured, the whole system still runs identically
 minus this layer -- it's additive, never load-bearing.
 
+The agent also decides *how* to recover, not just whether: it picks the
+outreach channel (only from what that playbook can actually deliver) and can
+postpone contact by up to 24 hours when now looks like the wrong moment. Show
+a trace whose plan reads
+`[diagnose:technical_glitch, execute:checkout_dropoff, ai_agent:proceed, ai_channel:whatsapp]`
+-- the deterministic engine picked the playbook, the model picked the channel.
+For the strongest version, show a `deferred` signal in one run, then re-run
+with `--simulate-time` a few hours later and watch the same signal come back,
+get re-checked against every guardrail, and go out. Deferring can only ever
+delay contact: a signal postponed into quiet hours is stopped when it returns.
+
 ## 5. Architecture (45s)
 
 **Signal detection** (`app/data/raw_events.py` + `app/engine/detection.py`)

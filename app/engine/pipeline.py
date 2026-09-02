@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from app import db
-from app.models import Signal, Trace
+from app.models import Signal, SignalType, Trace
 from app.engine.diagnosis import diagnose
 from app.engine.policy import decide
 from app.engine.agent import refine_decision
@@ -39,13 +39,36 @@ def process_signal(
         db.log_event(signal.id, "decision_ai_refined", refined.__dict__)
     decision = refined
 
-    action = execute(signal, decision)
+    action = execute(signal, decision, now_utc=now_utc)
     db.log_event(signal.id, "action", action.__dict__)
 
     if action.channel.value != "none":
         db.record_contact(signal.customer_id, signal.id, action.channel.value)
 
     return Trace(signal=signal, diagnosis=diagnosis, decision=decision, action=action)
+
+
+def release_due_deferrals(now_utc=None) -> List[Signal]:
+    """Rebuilds any signals whose AI-requested wait has now elapsed, so they
+    re-enter the batch.
+
+    This is the half that makes a deferral real rather than a note in a log.
+    A released signal is NOT fast-tracked: it goes through diagnosis, every
+    compliance guardrail, and the agent again, evaluated against the later
+    clock -- so a signal deferred into quiet hours is simply stopped when it
+    comes back, exactly as a fresh signal would be.
+    """
+    released: List[Signal] = []
+    for record in db.list_due_deferred_signals(now_utc):
+        raw = dict(record["signal"])
+        try:
+            raw["type"] = SignalType(raw["type"])
+            signal = Signal(**raw)
+        except (ValueError, TypeError):
+            continue  # unreadable record -- skip rather than crash the batch
+        if db.release_deferred_signal(signal.id):
+            released.append(signal)
+    return released
 
 
 def prefetch_agent_recommendations(
@@ -128,6 +151,17 @@ def process_batch(
     signals: List[Signal], now_utc: Optional[datetime] = None, show_progress: bool = True
 ) -> List[Trace]:
     db.init_db()
+
+    # Signals the agent asked to postpone in an earlier run, whose wait has
+    # now elapsed, join this batch and are re-evaluated from scratch.
+    due = release_due_deferrals(now_utc)
+    if due:
+        if show_progress:
+            print(
+                f"  Releasing {len(due)} previously deferred signal(s) whose wait has elapsed.",
+                flush=True,
+            )
+        signals = list(due) + list(signals)
 
     # Network waits happen here, concurrently, before the sequential loop --
     # see prefetch_agent_recommendations for why the loop itself stays serial.

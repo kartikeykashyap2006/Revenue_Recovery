@@ -18,7 +18,9 @@ RECOVERY_PROBABILITY = {
 def run(signal: Signal, decision: Decision) -> ActionResult:
     due_date = signal.metadata.get("due_date", "recently")
     message = receivable_reminder_message(signal, due_date)
-    channel = Channel.EMAIL
+    # The agent may pick the channel (validated against this playbook's own
+    # supported list in app/engine/agent.py); otherwise the default applies.
+    channel = Channel(decision.channel_override) if decision.channel_override else Channel.EMAIL
     messaging.send(channel.value, signal.customer_id, message, signal_id=signal.id)
 
     reason_code = signal.metadata.get("reason_code", "unknown")

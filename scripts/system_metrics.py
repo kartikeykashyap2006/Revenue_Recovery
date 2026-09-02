@@ -22,6 +22,32 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import db
 
 
+
+def _channel_summary(real_answers) -> str:
+    """How often the agent picked the outreach channel itself, rather than
+    accepting the playbook's default."""
+    chosen = Counter(r["channel"] for r in real_answers if r.get("channel"))
+    if not chosen:
+        return "0 -- every send used its playbook's default channel"
+    total = sum(chosen.values())
+    breakdown = ", ".join(f"{k}={v}" for k, v in chosen.most_common())
+    return f"{total} ({total/len(real_answers):.0%}): {breakdown}"
+
+
+def _defer_summary(real_answers) -> str:
+    """How often the agent judged now to be the wrong moment and scheduled
+    the outreach for later instead (app/engine/actions.py persists these;
+    a later batch re-evaluates them against every guardrail again)."""
+    deferrals = [int(r.get("defer_hours") or 0) for r in real_answers]
+    postponed = [d for d in deferrals if d > 0]
+    if not postponed:
+        return "0 -- no outreach was postponed"
+    return (
+        f"{len(postponed)} ({len(postponed)/len(real_answers):.0%}), "
+        f"average delay {sum(postponed)/len(postponed):.1f}h"
+    )
+
+
 def main():
     entries = db.fetch_audit_log()
     if not entries:
@@ -87,6 +113,8 @@ def main():
             ("Action distribution (real answers only)", ", ".join(f"{k}={v}" for k, v in action_counts.most_common()) or "n/a"),
             ("Average confidence (real answers only)", f"{sum(r['confidence'] for r in real)/len(real):.2f}" if real else "n/a"),
             ("Actually changed the deterministic outcome", f"{len(refinements)} ({len(refinements)/n:.0%} of consultations)"),
+            ("Chose a non-default channel", _channel_summary(real)),
+            ("Postponed outreach", _defer_summary(real)),
         ]))
     else:
         lines.append(("AI recovery-decision agent", [

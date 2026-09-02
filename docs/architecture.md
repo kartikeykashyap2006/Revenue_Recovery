@@ -217,6 +217,44 @@ inline. Measured effect with a stubbed model at concurrency 6: 18
 consultations, zero duplicate calls, 5.8x faster wall-clock than
 sequential.
 
+## What the agent decides, and what it can never decide
+
+The agent's output widened from "should we proceed" to "how should we
+recover", while the set of things it can influence stayed a closed list the
+deterministic layer owns. It may:
+
+- **choose the outreach channel**, from `PLAYBOOK_CHANNELS` in
+  `app/engine/agent.py` -- the channels that playbook can actually deliver
+  on. A channel outside that list is discarded and the playbook's own
+  default is used, so a model naming `email` for a playbook that only does
+  SMS/WhatsApp causes a normal send, not a broken one.
+- **postpone the outreach** by 0-24 hours, when contacting immediately looks
+  counterproductive for that specific case (a bank-side failure that needs
+  time to clear before a retry has any chance).
+
+Both are advisory, both are validated twice (in
+`llm.llm_recommend_action` when parsing the response, and again in
+`agent.refine_decision` against the playbook's own channel list), and both
+are ignored entirely unless the action is `proceed` -- a `hold` or
+`escalate` has no outreach to shape.
+
+The delay is deliberately one-directional. `defer_hours` is clamped to
+`max(0, min(n, 24))`, so the agent can push contact later but never bring it
+forward -- a negative value can't be read as "contact sooner". And a
+deferral is not a pre-authorisation: `app/engine/actions.py` persists the
+whole signal (`db.record_deferred_signal`), and
+`pipeline.release_due_deferrals` puts it back through the FULL pipeline when
+its time comes -- diagnosis, every compliance guardrail, and the agent
+again, evaluated against the later clock. A signal deferred into quiet hours
+is simply stopped when it returns, exactly as a fresh signal would be. That
+property is pinned by
+`tests/test_deferral.py::test_a_signal_deferred_into_quiet_hours_is_stopped_not_sent`.
+
+Storing the entire signal rather than just its id matters: synthetic batches
+are regenerated per run, so an id-only deferral would be recorded and then
+quietly never acted on -- a promise the system doesn't keep, which is the
+exact class of claim the rest of this design exists to avoid.
+
 ## Recovery confirmation: a separate, audited step
 
 A playbook (`app/playbooks/*.py`) never decides "recovered" for itself.

@@ -223,6 +223,12 @@ def llm_diagnose(signal: Signal) -> Optional[Diagnosis]:
 
 _AGENT_ALLOWED_ACTIONS = {"proceed", "hold", "escalate"}
 
+# Upper bound on how long the agent may postpone outreach. A deferral is
+# advisory and one-directional: it can push contact later (the agent judging
+# now to be a bad moment), never earlier, and never past the point where the
+# signal would go stale. Anything outside this range is clamped, not obeyed.
+_MAX_DEFER_HOURS = 24
+
 _AGENT_PROMPT_TEMPLATE = """You are a bounded recovery-decision agent for a payments company's revenue-recovery system.
 
 This specific signal has ALREADY cleared every deterministic compliance/safety guardrail (opt-outs, mandatory-escalation root causes, high-value thresholds, max-contact-attempts, cooldown, quiet hours) and is cleared to proceed with its assigned recovery playbook. Your only job is to sanity-check that call using the context below -- most of the time "proceed" is correct, but you may override it for this specific case if something in the context genuinely warrants more caution than the deterministic rules alone applied.
@@ -236,11 +242,15 @@ Customer language preference: {language_pref}
 Additional context: {extra_context}
 
 Choose exactly one action:
-- "proceed": go ahead with the assigned playbook as planned.
+- "proceed": go ahead with the assigned playbook.
 - "hold": don't contact the customer this round (e.g. already close to the contact limit, or outreach right now seems premature for this specific case) -- explain why.
 - "escalate": flag this specific case for human review even though it didn't trip an automatic escalation rule (e.g. borderline-high amount, unusually low diagnosis confidence, or something in the context looks atypical for this root cause).
 
-Respond with strict JSON, and nothing else, no markdown formatting: {{"action": "<one of proceed|hold|escalate>", "confidence": <0-1 float>, "reasoning": "<one or two sentences, specific to this case>"}}
+If (and only if) you choose "proceed", you may also shape HOW the outreach happens:
+- "channel": which channel to use, from this list and no other: {available_channels}. Consider the customer's language preference and what the root cause implies (e.g. a payment that failed on a technical glitch may deserve a more immediate channel than a routine reminder). Use null to accept the playbook's default.
+- "defer_hours": an integer from 0 to {max_defer_hours}. Use 0 to send now. Use a positive number when contacting immediately looks counterproductive for this specific case and waiting is likely to do better (e.g. a bank-side failure that needs time to clear before a retry has any chance). You can only delay outreach, never bring it forward.
+
+Respond with strict JSON, and nothing else, no markdown formatting: {{"action": "<one of proceed|hold|escalate>", "channel": "<one of {available_channels}, or null>", "defer_hours": <integer 0-{max_defer_hours}>, "confidence": <0-1 float>, "reasoning": "<one or two sentences, specific to this case, mentioning the channel/delay choice if you made one>"}}
 """
 
 
@@ -264,6 +274,7 @@ def llm_recommend_action(signal: Signal, diagnosis: Diagnosis, context: dict) ->
         core_keys = {
             "signal_type", "amount", "currency", "root_cause",
             "diagnosis_confidence", "playbook", "prior_contact_attempts", "language_pref",
+            "available_channels",
         }
         extra = {k: v for k, v in context.items() if k not in core_keys}
         prompt = _AGENT_PROMPT_TEMPLATE.format(
@@ -276,6 +287,8 @@ def llm_recommend_action(signal: Signal, diagnosis: Diagnosis, context: dict) ->
             prior_contact_attempts=context["prior_contact_attempts"],
             language_pref=context["language_pref"],
             extra_context=json.dumps(extra, default=str),
+            available_channels=", ".join(context.get("available_channels", [])) or "none",
+            max_defer_hours=_MAX_DEFER_HOURS,
         )
         data = _extract_json(_call_llm(prompt, max_tokens=200))
         action = data.get("action")
@@ -285,11 +298,35 @@ def llm_recommend_action(signal: Signal, diagnosis: Diagnosis, context: dict) ->
                 reasoning=data.get("reasoning", ""),
                 error=f"model returned an action outside the bounded set: {action!r}",
             )
+        # Validate/clamp before anything reaches a Decision. A model answer
+        # is a suggestion about HOW to act, never permission to act
+        # differently: an unsupported channel falls back to the playbook's
+        # own default, and a defer outside the allowed window is clamped
+        # rather than honoured (a negative value could otherwise be read as
+        # "contact sooner", which the agent is never allowed to ask for).
+        allowed_channels = set(context.get("available_channels", []))
+        channel = data.get("channel")
+        if channel not in allowed_channels:
+            channel = None
+
+        try:
+            defer_hours = int(data.get("defer_hours") or 0)
+        except (TypeError, ValueError):
+            defer_hours = 0
+        defer_hours = max(0, min(defer_hours, _MAX_DEFER_HOURS))
+
+        # Channel and delay only mean anything for an outreach that is
+        # actually going to happen.
+        if action != "proceed":
+            channel, defer_hours = None, 0
+
         return AgentRecommendation(
             signal_id=signal.id,
             action=action,
             confidence=float(data.get("confidence", 0.0)),
             reasoning=data.get("reasoning", ""),
+            channel=channel,
+            defer_hours=defer_hours,
         )
     except Exception as exc:  # best-effort fallback, never crash the pipeline
         return AgentRecommendation(

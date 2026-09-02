@@ -1,3 +1,7 @@
+from datetime import datetime, timedelta
+from typing import Optional
+
+from app import db
 from app.models import Signal, Decision, ActionResult, Channel, ActionStatus
 from app.playbooks import (
     payment_retry,
@@ -14,7 +18,7 @@ PLAYBOOKS = {
 }
 
 
-def execute(signal: Signal, decision: Decision) -> ActionResult:
+def execute(signal: Signal, decision: Decision, now_utc: Optional[datetime] = None) -> ActionResult:
     # Escalation takes precedence over a plain stop. A compliance-sensitive
     # root cause (see policy.ALWAYS_ESCALATE) sets BOTH escalate=True and
     # stop=True, and must surface as ESCALATED (flagged for human review) --
@@ -34,6 +38,30 @@ def execute(signal: Signal, decision: Decision) -> ActionResult:
             signal_id=signal.id, playbook=decision.playbook, channel=Channel.NONE,
             status=ActionStatus.STOPPED, message_sent=None, amount_recovered=0.0,
             details={"reason": decision.stop_reason},
+        )
+
+    # The agent asked to wait. Persist the whole signal so a LATER batch
+    # genuinely picks it up once the wait has elapsed, and put it through
+    # every guardrail again at that point -- deferral postpones contact, it
+    # never pre-authorises it. Recording a deferral without that follow-up
+    # would be a promise the system doesn't keep.
+    if decision.defer_hours > 0:
+        reference_now = now_utc or datetime.utcnow()
+        not_before = reference_now + timedelta(hours=decision.defer_hours)
+        signal_dict = {**signal.__dict__, "type": signal.type.value}
+        db.record_deferred_signal(
+            signal_dict,
+            not_before=not_before.isoformat(),
+            reason=f"ai_agent_deferred_{decision.defer_hours}h",
+        )
+        return ActionResult(
+            signal_id=signal.id, playbook=decision.playbook, channel=Channel.NONE,
+            status=ActionStatus.DEFERRED, message_sent=None, amount_recovered=0.0,
+            details={
+                "reason": "ai_agent_requested_delay",
+                "defer_hours": decision.defer_hours,
+                "not_before": not_before.isoformat(),
+            },
         )
 
     handler = PLAYBOOKS.get(decision.playbook)

@@ -29,6 +29,19 @@ from app.models import Decision, Diagnosis, Signal, SignalType
 
 ALLOWED_AGENT_ACTIONS = {"proceed", "hold", "escalate"}
 
+# Which channels each playbook can actually deliver on. This is the
+# deterministic layer's list, not the model's: the agent may pick FROM it,
+# and anything it proposes outside it is discarded in favour of the
+# playbook's own default (see app/integrations/llm.py's validation). Keeping
+# it here rather than in the prompt means widening the agent's options is a
+# deliberate code change, never something a model can talk its way into.
+PLAYBOOK_CHANNELS = {
+    "payment_retry": ["sms", "whatsapp"],
+    "checkout_dropoff": ["email", "whatsapp"],
+    "subscription_mandate": ["sms", "whatsapp"],
+    "receivables_chaser": ["email"],
+}
+
 
 def build_context(signal: Signal, diagnosis: Diagnosis, decision: Decision, now_utc: datetime) -> dict:
     """Everything handed to the agent to reason over -- real values read
@@ -52,6 +65,7 @@ def build_context(signal: Signal, diagnosis: Diagnosis, decision: Decision, now_
         "playbook": decision.playbook,
         "language_pref": signal.language_pref,
         "prior_contact_attempts": db.get_contact_count(signal.customer_id),
+        "available_channels": PLAYBOOK_CHANNELS.get(decision.playbook, []),
     }
     if signal.type == SignalType.SUBSCRIPTION_MANDATE_FAILURE:
         context["mandate_attempt_count"] = signal.metadata.get("attempt_count")
@@ -135,10 +149,26 @@ def refine_decision(
             escalate=False, stop=True, stop_reason="ai_recommended_hold", plan=plan,
         )
 
-    # "proceed" -- deterministic decision stands; only the plan gets the
-    # note that the agent was consulted and agreed.
+    # "proceed" -- the deterministic outcome stands. The agent may still
+    # shape HOW the outreach happens: which channel, and whether to wait.
+    # Both were already validated and clamped in
+    # app/integrations/llm.py:llm_recommend_action, and both are re-checked
+    # against this playbook's own channel list here, so a stale or
+    # hand-constructed recommendation can't smuggle in an unsupported
+    # channel or a negative delay.
+    channel_override = recommendation.channel
+    if channel_override not in PLAYBOOK_CHANNELS.get(decision.playbook, []):
+        channel_override = None
+    defer_hours = max(0, int(recommendation.defer_hours or 0))
+
+    if channel_override:
+        plan.append(f"ai_channel:{channel_override}")
+    if defer_hours:
+        plan.append(f"ai_defer:{defer_hours}h")
+
     return Decision(
         signal_id=decision.signal_id, playbook=decision.playbook,
         escalate=decision.escalate, stop=decision.stop,
         stop_reason=decision.stop_reason, plan=plan,
+        channel_override=channel_override, defer_hours=defer_hours,
     )

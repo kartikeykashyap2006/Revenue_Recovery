@@ -16,7 +16,9 @@ RECOVERY_PROBABILITY_BY_CAUSE = {
 def run(signal: Signal, decision: Decision) -> ActionResult:
     link = razorpay_client.create_recovery_payment_link(signal)
     message = mandate_retry_message(signal, link["short_url"])
-    channel = Channel.WHATSAPP if signal.language_pref == "hi" else Channel.SMS
+    # The agent may pick the channel (validated against this playbook's own
+    # supported list in app/engine/agent.py); otherwise the default applies.
+    channel = Channel(decision.channel_override) if decision.channel_override else Channel.WHATSAPP if signal.language_pref == "hi" else Channel.SMS
     messaging.send(channel.value, signal.customer_id, message, signal_id=signal.id)
 
     attempt = int(signal.metadata.get("attempt_count", 1))
