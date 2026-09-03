@@ -1,4 +1,4 @@
-import type { DashboardResponse } from "./types";
+import type { DashboardResponse, RunConfig } from "./types";
 
 /**
  * In dev, Vite proxies /api to the backend (see vite.config.ts), so the app
@@ -19,6 +19,13 @@ export class BackendUnreachable extends Error {
   }
 }
 
+// Vite's dev-server proxy (see vite.config.ts) sits in front of the backend,
+// so "the backend is down" doesn't always surface as a failed fetch -- the
+// proxy itself responds, just with 502/503/504, when it can't reach the
+// upstream target. Both cases mean the same thing to the user and deserve
+// the same actionable message, not a bare "failed: 502".
+const PROXY_UNREACHABLE_STATUSES = new Set([502, 503, 504]);
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -26,14 +33,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (cause) {
     throw new BackendUnreachable(cause);
   }
+  if (PROXY_UNREACHABLE_STATUSES.has(response.status)) {
+    throw new BackendUnreachable(new Error(`proxy returned ${response.status}`));
+  }
   if (!response.ok) {
-    throw new Error(`${init?.method ?? "GET"} ${path} failed: ${response.status}`);
+    let detail = "";
+    try {
+      detail = (await response.json())?.detail ?? "";
+    } catch {
+      // response body wasn't JSON -- fall through with no extra detail
+    }
+    throw new Error(`${init?.method ?? "GET"} ${path} failed: ${response.status}${detail ? ` (${detail})` : ""}`);
   }
   return (await response.json()) as T;
 }
 
 export function fetchDashboard(): Promise<DashboardResponse> {
   return request<DashboardResponse>("/api/dashboard");
+}
+
+export function fetchConfig(): Promise<RunConfig> {
+  return request<RunConfig>("/api/config");
 }
 
 export function runBatch(params: {

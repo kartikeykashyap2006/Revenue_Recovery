@@ -55,23 +55,43 @@ but shares the same shape: detect, diagnose, recover.
 
 ## 2. Live demo (2.5 min)
 
-Have `reports/dashboard.html` open in a browser tab before you start
-(`python scripts/build_dashboard.py`). Run the batch on camera, then rebuild
-and switch to the tab: headline numbers, the detection funnel, recovery by
-scenario, and a case list where any row expands to that signal's entire audit
-trail. Expanding one case is the strongest single moment in the demo -- it
-turns "we log every decision" from a claim into something the judges watch you
-click.
+Have **Recoup** (the product name for the frontend) open in a browser tab
+before you start (`cd backend && uvicorn app.main:app --reload`,
+`cd frontend && npm run dev`, open http://localhost:5173). It's a real
+multi-page app -- sidebar nav across **Overview**, **Cases**, and **Agent** --
+not a single scrolling report. Click **Run batch** on camera (the control is
+in the top bar on every page) -- this fires `/api/run-batch`, which runs the
+exact same pipeline as the CLI (raw event generation, detection, diagnosis,
+policy, the AI agent, confirmation) and returns the same numbers
+`dashboard_data.py` computes for every other surface. Watching the button
+trigger real model calls and come back with a populated dashboard a few
+seconds later is the strongest "this is really running, not a slideshow"
+moment available -- better than reading numbers off a pre-built file.
 
-Run the command above on camera. Point out the two visibly distinct
-phases as they happen: every signal is processed and sent first (all
-show `-> sent`), then a separate "Simulating gateway confirmations for N
-pending payment(s)..." phase runs and *that's* when recovered amounts
-appear -- this is deliberate, not cosmetic: a playbook never decides
-"recovered" for itself (see `app/engine/confirmation.py`), so every
-`RECOVERED` result in the report is traceable to a distinct `confirmation`
-audit event with its own timestamp and reference, separate from the
-`action` event that recorded the send.
+**Overview** has the headline numbers, the detection funnel, and recovery by
+scenario. **Cases** is the centrepiece: every case in the batch, searchable
+and filterable by outcome/scenario, where any row expands to that signal's
+entire audit trail. Expanding one case is the strongest single moment in the
+demo -- it turns "we log every decision" from a claim into something the
+judges watch you click. **Agent** is the direct answer to "is the AI actually
+deciding anything": it surfaces every case where the model's call changed the
+deterministic outcome, with its actual `reasoning` string quoted on screen --
+see section 4 below.
+
+(`reports/dashboard.html`, built with `python scripts/build_dashboard.py`, is
+the offline fallback -- same payload, no server needed, useful if venue wifi
+makes running two local dev servers risky. Keep it open in a second tab as a
+backup, not the headline.)
+
+For the version of this demo run from the CLI instead, use the command at the
+top of this file. Point out the two visibly distinct phases as they happen:
+every signal is processed and sent first (all show `-> sent`), then a
+separate "Simulating gateway confirmations for N pending payment(s)..."
+phase runs and *that's* when recovered amounts appear -- this is deliberate,
+not cosmetic: a playbook never decides "recovered" for itself (see
+`app/engine/confirmation.py`), so every `RECOVERED` result in the report is
+traceable to a distinct `confirmation` audit event with its own timestamp
+and reference, separate from the `action` event that recorded the send.
 
 Walk through one trace end-to-end using
 `python scripts/inspect_audit.py --signal-id <id>` on a recovered payment
@@ -108,7 +128,10 @@ signal that clears the deterministic policy engine's guardrails and is
 about to proceed with its assigned playbook, the model gets one narrow,
 bounded call -- `proceed`, `hold`, or `escalate` -- given the signal's
 real context. It can add caution but can never loosen a guardrail or
-invent a fourth action. Pull up an `ai_recommendation` audit event with
+invent a fourth action. Fastest way to show this live: Recoup's **Agent**
+page lists exactly the cases where a consultation changed the outcome, each
+with its `reasoning` string already quoted -- no CLI needed. Or pull up an
+`ai_recommendation` audit event with
 `python scripts/inspect_audit.py --n 20` and read the model's actual
 `reasoning` string out loud -- that's the concrete evidence there's a real
 model call happening, not a hardcoded label. If a signal's `decision_ai_
@@ -148,15 +171,21 @@ either way), a separate confirmation stage
 (`app/engine/confirmation.py`) that a real Razorpay webhook can drive
 instead of the simulated demo path, an AI recovery-decision agent
 (`app/engine/agent.py`, Claude or free Gemma) that can only add caution
-downstream of the deterministic policy engine, and 35 passing tests
+downstream of the deterministic policy engine, and 75 passing tests
 covering signal detection, diagnosis rules, policy guardrails, playbook
-mechanics, the confirmation step, the AI agent's bounded behavior, and
+mechanics, the confirmation step, the AI agent's bounded behavior,
+deferral, promise-to-pay, the API's own batch-detection bookkeeping, and
 crash resilience (`pytest tests/ -v`).
+
+A TypeScript/React frontend (`frontend/`) talks to FastAPI over `/api` and
+renders the same payload `app/reporting/dashboard_data.py` builds for the
+offline HTML dashboard -- one computation, three surfaces (CLI report, API,
+UI) that can never disagree about a number.
 
 ## 6. What's next (15s)
 
-Let the AI agent influence channel/timing choices within a playbook, not
-just proceed/hold/escalate; a small read-only dashboard over
-`reports/latest_report.json` for a more visual demo; richer detection
-rules (e.g. distinguishing a slow retry from an abandoned one by elapsed
-time, not just event presence).
+No auth on the API and no locking on the JSON state store -- both fine at
+demo scale, both real work before this touches production traffic; richer
+detection rules (e.g. distinguishing a slow retry from an abandoned one by
+elapsed time, not just event presence); automated tests for the frontend to
+match the backend's 74.

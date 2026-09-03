@@ -97,3 +97,10 @@ export interface EmptyDashboard {
 }
 
 export type DashboardResponse = Dashboard | EmptyDashboard;
+
+/** Read-only: whether/how the AI agent is wired up this run. Never toggled
+ *  from the UI -- it's set from .env at backend startup. */
+export interface RunConfig {
+  use_ai_recovery_agent: boolean;
+  llm_provider: string;
+}

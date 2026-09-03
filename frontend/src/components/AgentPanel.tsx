@@ -1,17 +1,32 @@
-import type { AgentStats } from "../types";
+import type { AgentStats, RunConfig } from "../types";
 import { Stat } from "./Stat";
 
 interface Props {
   agent: AgentStats;
+  config: RunConfig | null;
 }
 
-export function AgentPanel({ agent }: Props) {
-  if (!agent.consultations) {
+export function AgentPanel({ agent, config }: Props) {
+  if (!config?.use_ai_recovery_agent) {
     return (
       <section className="card">
         <h2>What the AI agent actually did</h2>
         <div className="stats">
           <Stat label="Consultations" value="0" sub="USE_AI_RECOVERY_AGENT is off" />
+        </div>
+      </section>
+    );
+  }
+  if (!agent.consultations) {
+    return (
+      <section className="card">
+        <h2>What the AI agent actually did</h2>
+        <div className="stats">
+          <Stat
+            label="Consultations"
+            value="0"
+            sub={`agent is on (${config.llm_provider}) -- no signal in this run cleared every guardrail`}
+          />
         </div>
       </section>
     );

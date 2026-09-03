@@ -50,10 +50,27 @@ def health():
 @app.post("/run-batch")
 def run_batch(n: int = 60, seed: Optional[int] = None):
     signals = generate_batch(n=n, seed=seed)
+    db.log_event("__batch__", "batch_detection", {
+        "raw_cases": n, "signals_detected": len(signals),
+        "resolved_on_their_own": n - len(signals),
+    })
     traces = process_batch(signals, show_progress=False)
     report = generate_report(traces)
     save_report(report)
     return report
+
+
+@app.get("/api/config")
+def config():
+    """Read-only knobs the frontend needs to render run controls honestly --
+    e.g. whether the AI agent is even consultable this run, so the UI never
+    has to *infer* that from a batch that happened to consult it zero times
+    (which also happens when the flag is on but no signal cleared every
+    guardrail)."""
+    return {
+        "use_ai_recovery_agent": settings.USE_AI_RECOVERY_AGENT,
+        "llm_provider": settings.LLM_PROVIDER,
+    }
 
 
 @app.get("/api/dashboard")
@@ -73,8 +90,24 @@ def api_run_batch(n: int = 25, seed: Optional[int] = None, simulate_time: Option
     default -- with the AI agent on, every signal that clears the guardrails
     makes a real model call.
     """
-    now_utc = datetime.fromisoformat(simulate_time) if simulate_time else None
+    if simulate_time:
+        try:
+            now_utc = datetime.fromisoformat(simulate_time)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"simulate_time is not a valid ISO datetime: {simulate_time!r}")
+    else:
+        now_utc = None
     signals = generate_batch(n=n, seed=seed, now_utc=now_utc)
+    # Logged to the audit trail (mirroring scripts/run_batch.py) so
+    # dashboard_data.py's _latest_batch can find *this* run's boundary --
+    # without it, every API-triggered run silently folds into whatever the
+    # last CLI run logged, and the funnel/recovery-rate numbers quietly
+    # start describing "everything since the last CLI --reset" instead of
+    # the batch that was just requested.
+    db.log_event("__batch__", "batch_detection", {
+        "raw_cases": n, "signals_detected": len(signals),
+        "resolved_on_their_own": n - len(signals),
+    })
     traces = process_batch(signals, now_utc=now_utc, show_progress=False)
     report = generate_report(traces)
     save_report(report)
