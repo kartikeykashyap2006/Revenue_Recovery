@@ -7,14 +7,17 @@ subscription mandates, overdue B2B receivables), diagnoses why, chooses a
 bounded recovery action, executes it, and proves what money actually came
 back — with compliant escalation, stopping rules, and a complete audit trail.
 
+The frontend is a real product with its own name: **Recoup**.
+
 ```
 razorpayproject/
 ├── backend/     Python — the engine, the API, the tests, the CLI tools
 │   ├── app/         detection → diagnosis → policy → AI agent → playbooks → confirmation
 │   ├── scripts/     run a batch, inspect the audit trail, metrics, offline dashboard
-│   └── tests/       74 tests
-├── frontend/    TypeScript + React (Vite) — the dashboard UI
-│   └── src/         typed API client, components, audit-trail viewer
+│   └── tests/       76 tests
+├── frontend/    TypeScript + React (Vite) — "Recoup", a multi-page dashboard
+│   └── src/         pages/ (Overview, Cases, Agent), layout/ (sidebar + top bar),
+│                     context/ (shared batch state), typed API client
 └── docs/        architecture writeup and pitch outline
 ```
 
@@ -26,17 +29,22 @@ up as a TypeScript error rather than as `undefined` on the page.
 
 ## Run it
 
-Two terminals.
+Two terminals, from the repo root.
 
 **Backend** (Python 3.9+):
 
 ```bash
+cp .env.example .env          # optional — it runs fully without any keys; see below
 cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # optional — it runs fully without any keys
 uvicorn app.main:app --reload # http://127.0.0.1:8000
 ```
+
+`.env.example` lives at the repo root, not in `backend/` — `python-dotenv`
+walks up from the process's working directory to find it, so a single `.env`
+at the root is picked up whether you run `uvicorn` from `backend/` or the CLI
+scripts from anywhere else.
 
 **Frontend** (Node 18+):
 
@@ -46,8 +54,14 @@ npm install
 npm run dev                   # http://localhost:5173
 ```
 
-Open http://localhost:5173 and press **Run batch**. The dev server proxies
-`/api` to the backend, so there is no CORS to configure.
+Open http://localhost:5173 — you land on Recoup's **Overview** page. Press
+**Run batch** (top right; expand **Run options** for seed / simulated time)
+to trigger a real batch through the same pipeline the CLI uses. **Cases** has
+every signal in the latest batch, searchable and filterable, with its full
+audit trail one click away. **Agent** surfaces every case where the AI
+recovery-decision layer actually changed the outcome, with its real
+`reasoning` string quoted. The dev server proxies `/api` to the backend, so
+there is no CORS to configure.
 
 ### Without the frontend
 
@@ -95,7 +109,7 @@ case in the UI expands to its full trail.
 ## Configuration
 
 Everything runs with no keys at all (mocked payment links, AI layer off). To
-switch parts on, copy `backend/.env.example` to `backend/.env`:
+switch parts on, copy the root `.env.example` to `.env`:
 
 | Setting | Effect |
 |---|---|

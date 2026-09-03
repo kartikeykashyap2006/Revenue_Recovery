@@ -17,7 +17,7 @@ money recovered across a batch.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # then fill in your Razorpay test-mode keys
+cp ../.env.example .env   # .env.example lives at the repo root; fill in your Razorpay test-mode keys
 python scripts/run_batch.py --reset --n 80 --seed 7 --save-traces --simulate-time 2026-08-31T10:00:00
 ```
 
@@ -110,7 +110,7 @@ happens: it picks the channel (only from the ones that playbook actually
 supports) and can postpone contact by up to 24 hours. A postponed signal is
 persisted and re-enters a later batch, where every guardrail is evaluated
 again against the later clock -- so deferring can delay contact but never
-pre-authorise it. See "What the agent decides" in docs/architecture.md.
+pre-authorise it. See "What the agent decides" in ../docs/architecture.md.
 
 Note: with `USE_LLM_DIAGNOSIS=true` too, the synthetic generator
 occasionally (5% of signals) produces a reason code no rule table
@@ -169,7 +169,7 @@ uvicorn app.main:app --reload
   cases, overdue-invoice timing), diagnosis rules, policy guardrails
   (opt-outs, escalation, stopping rules, IST-aware quiet hours), playbooks,
   and full-batch pipeline resilience
-- `docs/architecture.md` — full design writeup for the submission
-- `docs/pitch_outline.md` — 5-minute pitch video script
+- `../docs/architecture.md` — full design writeup for the submission
+- `../docs/pitch_outline.md` — 5-minute pitch video script
 
-See `docs/architecture.md` for the full design rationale.
+See `../docs/architecture.md` for the full design rationale.
