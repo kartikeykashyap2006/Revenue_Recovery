@@ -26,12 +26,16 @@ app = FastAPI(title="AI Revenue Recovery Agent")
 # this API cross-origin. Origins are listed explicitly rather than "*": this
 # API can trigger batches and returns customer contact details, so a wildcard
 # would let any page a developer happens to have open drive it.
+_allow_origins = [
+    "http://localhost:5173", "http://127.0.0.1:5173",   # vite dev server
+    "http://localhost:4173", "http://127.0.0.1:4173",   # vite preview
+]
+if settings.FRONTEND_ORIGIN:
+    _allow_origins.append(settings.FRONTEND_ORIGIN)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173", "http://127.0.0.1:5173",   # vite dev server
-        "http://localhost:4173", "http://127.0.0.1:4173",   # vite preview
-    ],
+    allow_origins=_allow_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

@@ -63,5 +63,10 @@ class Settings:
     QUIET_HOURS_END = int(os.getenv("QUIET_HOURS_END", "9"))       # 9 AM
     HIGH_VALUE_ESCALATION_THRESHOLD = float(os.getenv("HIGH_VALUE_ESCALATION_THRESHOLD", "50000"))
 
+    # Deployed frontend origin (e.g. https://recoup.vercel.app), added to the
+    # CORS allow-list in app/main.py alongside the local Vite dev/preview
+    # origins. Empty by default -- local dev never needs it.
+    FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "")
+
 
 settings = Settings()
