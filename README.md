@@ -139,4 +139,4 @@ switch parts on, copy the root `.env.example` to `.env`:
 - The JSON state store suits a single-process demo. Real deployment would want
   Postgres, auth on the API, and a job queue — see `docs/architecture.md`.
 
-Full design writeup: `docs/architecture.md`. Pitch script: `docs/pitch_outline.md`.
+Full design writeup: `docs/architecture.md`.

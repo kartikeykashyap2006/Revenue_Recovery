@@ -103,4 +103,4 @@ discovering under questioning:
 
 `docs/architecture.md` explains why each design choice was made, including the
 bugs that motivated them. Commit messages carry the same reasoning — `git log`
-is genuinely useful here. `docs/pitch_outline.md` is the demo script.
+is genuinely useful here.

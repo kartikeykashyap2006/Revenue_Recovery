@@ -24,3 +24,7 @@ audit_trail.db-journal
 # here so a checkout from the repo root never stages them by accident).
 node_modules/
 frontend/dist/
+
+# Personal presentation material, not project documentation -- kept locally
+# for actually rehearsing the pitch, not published to the repo.
+docs/pitch_outline.md

@@ -174,6 +174,5 @@ uvicorn app.main:app --reload
   (opt-outs, escalation, stopping rules, IST-aware quiet hours), playbooks,
   and full-batch pipeline resilience
 - `../docs/architecture.md` — full design writeup for the submission
-- `../docs/pitch_outline.md` — 5-minute pitch video script
 
 See `../docs/architecture.md` for the full design rationale.
