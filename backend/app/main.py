@@ -114,6 +114,19 @@ def api_run_batch(n: int = 25, seed: Optional[int] = None, simulate_time: Option
     return build_payload()
 
 
+@app.post("/api/reset")
+def api_reset():
+    """Clears the audit trail and all accumulated state, then returns the
+    now-empty dashboard payload. The UI has no other way to start clean:
+    every "Run batch" appends to the same store (contact history, pending
+    recoveries) rather than replacing it, which is correct for showing the
+    passage of time across runs but means a long demo session slowly piles
+    up state. This is the button that gets back to a blank slate, the same
+    reset scripts/run_batch.py --reset performs -- one shared db.reset()."""
+    db.reset()
+    return build_payload()
+
+
 @app.get("/audit-log")
 def audit_log(signal_id: Optional[str] = None):
     return db.fetch_audit_log(signal_id)

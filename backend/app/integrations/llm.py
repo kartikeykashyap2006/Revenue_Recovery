@@ -10,9 +10,13 @@ response) rather than raising.
 Two providers are supported, selected by settings.LLM_PROVIDER:
 - "anthropic" (default): the Claude API. Needs ANTHROPIC_API_KEY and
   billing set up on the account.
-- "gemini": Google's hosted Gemini API, calling a Gemma model. Needs
-  GEMINI_API_KEY (free via https://aistudio.google.com/apikey, no
-  billing required to start).
+- "nvidia": NVIDIA's hosted NIM API, calling a Nemotron model. Needs
+  NVIDIA_API_KEY (free via https://build.nvidia.com, no billing required
+  to start, ~40 RPM on the free tier). The model is a reasoning variant;
+  its internal thinking pass is explicitly disabled per request (see
+  _nvidia_payload) because reasoning tokens otherwise dominate wall-clock
+  time for a bounded few-way classification -- a ~7x per-call speedup
+  measured against this model.
 
 Both go through _call_llm() below, so llm_diagnose and
 llm_recommend_action don't know or care which one answered -- same
@@ -31,8 +35,8 @@ _ROOT_CAUSE_VALUES = [c.value for c in RootCause]
 
 
 def _llm_configured() -> bool:
-    if settings.LLM_PROVIDER == "gemini":
-        return bool(settings.GEMINI_API_KEY)
+    if settings.LLM_PROVIDER == "nvidia":
+        return bool(settings.NVIDIA_API_KEY)
     return bool(settings.ANTHROPIC_API_KEY)
 
 
@@ -50,77 +54,118 @@ def _extract_json(text: str) -> dict:
     return json.loads(text)
 
 
-# Whether this Gemma/Gemini model honors generationConfig.thinkingConfig
-# (see _gemini_generate). None = not yet discovered, True/False once a real
-# call has told us. Cached process-wide so the discovery cost is paid at
-# most once per run, not once per signal.
-_GEMINI_MINIMAL_THINKING_SUPPORTED = None
-
 # Transient upstream failures worth one retry rather than an immediate
 # fallback to the deterministic default: rate limiting (very reachable on a
 # free tier once calls run concurrently) and upstream unavailability.
 _RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
 _MAX_TRANSIENT_RETRIES = 4
 
+# Codes that mean "you are asking for more than there is capacity for right
+# now" -- these widen the request interval, not just trigger a retry.
+#
+# 503 belongs here, and leaving it out was costing whole minutes per batch.
+# NVIDIA NIM does NOT signal saturation with 429; it returns
+#   503 {"error":{"message":"ResourceExhausted: Worker local total request
+#        limit reached (16/16)", ...}}
+# because the inference worker is shared across free-tier users. Measured on
+# a real batch: 13 of 37 calls came back 503 while only 3 of 116 were ever
+# 429. With only 429 wired to back-off, the client stayed blind to the actual
+# congestion signal -- it just retried straight back into the full worker,
+# and because retries re-enter the throttle, each wasted attempt burned
+# another full interval slot plus a backoff sleep. Effective throughput is
+# target_rpm * success_rate, so a 65% success rate turned a 40 RPM target
+# into ~26 RPM. Backing off on 503 lets the client ride out a busy worker
+# instead of hammering it.
+_BACKPRESSURE_HTTP_CODES = {429, 503}
+
 # --- Adaptive client-side rate limiting -------------------------------------
 #
-# Free-tier keys rate-limit well before a laptop runs out of threads: a
-# 120-case batch (70 consultations at 6-way concurrency) came back 46% HTTP
-# 429, so nearly half the signals silently fell back to the deterministic
-# default instead of getting a real model opinion.
+# Requests are spaced by a shared minimum interval so concurrent workers don't
+# hammer the shared NIM worker. The strategy is DISCOVER-AND-BACK-OFF, not
+# pace-at-a-fixed-rate: start near the fastest cadence the config allows
+# (interval floor = 60 / settings.NVIDIA_MAX_RPM), let sustained success creep
+# toward that floor, and widen the interval whenever the worker pushes back
+# with a 429 or a 503 "worker full" (see _BACKPRESSURE_HTTP_CODES). Then
+# recover fast once it clears.
 #
-# Google publishes per-account limits in AI Studio rather than one fixed
-# number per model, and a hard-coded RPM guess would be wrong for anyone on a
-# different tier. So rather than guess, the client DISCOVERS the usable rate:
-# requests are spaced by a shared minimum interval, every 429 widens that
-# interval for all workers, and sustained success narrows it again. A run
-# self-tunes to whatever the key actually allows, and an upgraded key speeds
-# back up on its own.
-_rate_lock = threading.Lock()
-_min_request_interval = 1.0      # seconds between requests; adapts at runtime
-# Starts deliberately conservative rather than fast: converging DOWN from a
-# safe rate costs a few seconds on a generous key, while converging UP from an
-# aggressive one costs real 429s, and a 429 that exhausts its retries becomes a
-# signal that never got a model opinion at all.
-_INTERVAL_FLOOR = 0.2
-_INTERVAL_CEILING = 12.0
-_INTERVAL_WIDEN_FACTOR = 1.8     # on a 429, back off hard
-_INTERVAL_NARROW_FACTOR = 0.97   # on success, creep back down
-_last_request_at = 0.0
+# This beats pacing to a hard "safe" rate because the real constraint isn't a
+# clean per-minute cap -- it's shared-worker saturation that comes and goes.
+# A measured run in an uncongested window sustained ~44 RPM with zero errors
+# by pushing at this low floor; capping the pace at a conservative 40 RPM
+# instead just left that headroom on the table without avoiding the 503s that
+# a congested window throws regardless. The backpressure widen is what keeps a
+# busy worker from being hammered, so being aggressive on the floor is safe.
+_nvidia_rate_lock = threading.Lock()
+# Fastest cadence the throttle will use (seconds between starts = 60 / RPM).
+_NVIDIA_INTERVAL_FLOOR = 60.0 / max(settings.NVIDIA_MAX_RPM, 1)
+# Start a touch slower than the floor and let success discover the floor,
+# rather than opening with a burst into a worker whose state we don't know.
+_NVIDIA_INITIAL_INTERVAL = _NVIDIA_INTERVAL_FLOOR * 1.2
+_nvidia_min_request_interval = _NVIDIA_INITIAL_INTERVAL
+_NVIDIA_INTERVAL_CEILING = 6.0   # 10 RPM -- a real ceiling on back-off under a genuinely bad window
+_NVIDIA_INTERVAL_WIDEN_FACTOR = 1.35    # on 429/503, back off (see note about concurrent bursts below)
+_NVIDIA_INTERVAL_NARROW_FACTOR = 0.85   # once it clears, recover fast toward the floor
+_nvidia_last_request_at = 0.0
 
 
-def _throttle() -> None:
-    """Serialises request starts so concurrent workers stay under the rate
-    limit. The sleep deliberately happens while holding the lock: each caller
-    waits its turn, which is what spaces the requests out."""
-    global _last_request_at
-    with _rate_lock:
-        wait = _min_request_interval - (time.monotonic() - _last_request_at)
+def _nvidia_throttle() -> None:
+    global _nvidia_last_request_at
+    with _nvidia_rate_lock:
+        wait = _nvidia_min_request_interval - (time.monotonic() - _nvidia_last_request_at)
         if wait > 0:
             time.sleep(wait)
-        _last_request_at = time.monotonic()
+        _nvidia_last_request_at = time.monotonic()
 
 
-def _widen_interval() -> None:
-    global _min_request_interval
-    with _rate_lock:
-        _min_request_interval = min(
-            _min_request_interval * _INTERVAL_WIDEN_FACTOR, _INTERVAL_CEILING
+def _nvidia_widen_interval() -> None:
+    global _nvidia_min_request_interval
+    with _nvidia_rate_lock:
+        _nvidia_min_request_interval = min(
+            _nvidia_min_request_interval * _NVIDIA_INTERVAL_WIDEN_FACTOR, _NVIDIA_INTERVAL_CEILING
         )
 
 
-def _narrow_interval() -> None:
-    global _min_request_interval
-    with _rate_lock:
-        _min_request_interval = max(
-            _min_request_interval * _INTERVAL_NARROW_FACTOR, _INTERVAL_FLOOR
+def _nvidia_narrow_interval() -> None:
+    global _nvidia_min_request_interval
+    with _nvidia_rate_lock:
+        _nvidia_min_request_interval = max(
+            _nvidia_min_request_interval * _NVIDIA_INTERVAL_NARROW_FACTOR, _NVIDIA_INTERVAL_FLOOR
         )
 
 
-def current_request_interval() -> float:
-    """The interval the client has settled on for this run (tests/diagnostics)."""
-    with _rate_lock:
-        return _min_request_interval
+def current_nvidia_request_interval() -> float:
+    """The interval the NVIDIA client has settled on for this run (tests/diagnostics)."""
+    with _nvidia_rate_lock:
+        return _nvidia_min_request_interval
+
+
+# --- Throttle observability (diagnostics only) ------------------------------
+#
+# A batch's wall-clock time on the NVIDIA free tier is dominated by shared-
+# worker congestion (see the 503 note above) rather than anything in the
+# deterministic pipeline, so the useful thing to surface after a run is how
+# much backpressure it actually hit and where the interval ended up. These
+# counters make that observable instead of guessable -- read them with
+# nvidia_throttle_stats(), pair with current_nvidia_request_interval().
+_nvidia_stats_lock = threading.Lock()
+_nvidia_stats = {"successes": 0, "failures": 0, "http_429": 0, "http_503": 0, "retries": 0}
+
+
+def _record_nvidia_stat(key: str) -> None:
+    with _nvidia_stats_lock:
+        _nvidia_stats[key] += 1
+
+
+def nvidia_throttle_stats() -> dict:
+    """Snapshot of NVIDIA request outcomes since the last reset (diagnostics)."""
+    with _nvidia_stats_lock:
+        return dict(_nvidia_stats)
+
+
+def reset_nvidia_throttle_stats() -> None:
+    with _nvidia_stats_lock:
+        for k in _nvidia_stats:
+            _nvidia_stats[k] = 0
 
 
 def _retry_delay(exc, attempt: int) -> float:
@@ -129,119 +174,101 @@ def _retry_delay(exc, attempt: int) -> float:
     headers = getattr(exc, "headers", None)
     if headers is not None:
         try:
-            return min(float(headers.get("Retry-After")), _INTERVAL_CEILING * 2)
+            return min(float(headers.get("Retry-After")), _NVIDIA_INTERVAL_CEILING * 2)
         except (TypeError, ValueError):
             pass
-    return min(1.5 * (2 ** attempt), _INTERVAL_CEILING * 2) + random.uniform(0, 0.5)
+    return min(1.5 * (2 ** attempt), _NVIDIA_INTERVAL_CEILING * 2) + random.uniform(0, 0.5)
 
 
-def _gemini_payload(prompt: str, max_tokens: int, minimal_thinking: bool) -> bytes:
-    """Builds one generateContent request body.
+def _nvidia_payload(prompt: str, max_tokens: int) -> bytes:
+    """Builds one OpenAI-compatible chat-completions request body for
+    NVIDIA's hosted NIM API.
 
-    `minimal_thinking` asks Gemma to skip its internal reasoning pass. That
-    pass is the single biggest cost in this system: for a bounded
-    three-way classification, a trivial prompt was measured generating 169
-    thinking tokens to produce a 21-token answer -- ~89% of everything
-    generated, and generation is sequential, so it dominates wall-clock
-    time (~5.4s/call). Suppressing it is worth several-fold speedup, but
-    the controls are unreliable on Gemma specifically (thinkingBudget is
-    rejected outright; includeThoughts is silently ignored), so this is
-    attempted optimistically and abandoned permanently the moment the API
-    rejects it -- see _gemini_generate.
-
-    maxOutputTokens stays padded regardless: if thinking is NOT suppressed,
-    a tight budget gets consumed mid-thought and returns no usable answer
-    at all (finishReason=MAX_TOKENS with only a "thought" part).
+    enable_thinking is always sent False: this is a reasoning-variant
+    model, and letting it think is pure tax here -- most of the generated
+    tokens would be internal scratchpad, not the bounded three-way answer
+    this call actually needs, and generation is sequential so that
+    scratchpad dominates wall-clock time (a ~7x per-call speedup was
+    measured with it off: ~0.9s vs ~6.4s). NVIDIA's docs confirm
+    chat_template_kwargs.enable_thinking is honored, so it's simply always
+    off -- no discovery or fallback dance needed.
     """
-    generation_config = {"maxOutputTokens": max(max_tokens, 2048), "temperature": 0.2}
-    if minimal_thinking:
-        generation_config["thinkingConfig"] = {"thinkingLevel": "MINIMAL"}
+    # chat_template_kwargs belongs at the top level of the request body --
+    # "extra_body" is an OpenAI Python SDK convenience name for "merge these
+    # keys into the top-level payload", not a real field the raw HTTP API
+    # understands; sending it literally gets a 400 ("Unsupported
+    # parameter(s): extra_body"), which is how this got caught.
     return json.dumps(
         {
-            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-            "generationConfig": generation_config,
+            "model": settings.NVIDIA_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max(max_tokens, 512),
+            "temperature": 0.2,
+            "chat_template_kwargs": {"enable_thinking": False},
         }
     ).encode()
 
 
-def _gemini_post(payload: bytes, timeout: int = 30) -> dict:
+def _nvidia_post(payload: bytes, timeout: int = 30) -> dict:
     import urllib.request
 
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{settings.GEMINI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
-    )
     req = urllib.request.Request(
-        url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {settings.NVIDIA_API_KEY}",
+        },
+        method="POST",
     )
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read())
 
 
-def _gemini_post_with_retry(payload: bytes) -> dict:
-    """One retry pass over transient upstream failures. Concurrency (see
-    app/engine/pipeline.py's prefetch) makes free-tier rate limiting a
-    realistic occurrence rather than a theoretical one, and a 429 that
-    silently degrades to the deterministic default is a worse outcome than
-    waiting a second and asking again."""
+def _nvidia_post_with_retry(payload: bytes) -> dict:
+    """One retry pass over transient upstream failures, spacing request
+    starts by the adaptive interval (_nvidia_min_request_interval). A 429
+    that silently degrades to the deterministic default is a worse outcome
+    than waiting a moment and asking again -- see the comment above
+    _nvidia_rate_lock for how the interval self-tunes."""
     import urllib.error
 
     for attempt in range(_MAX_TRANSIENT_RETRIES + 1):
-        _throttle()
+        _nvidia_throttle()
         try:
-            response = _gemini_post(payload)
+            response = _nvidia_post(payload)
         except urllib.error.HTTPError as exc:
             if exc.code == 429:
-                # Slow every worker down, not just this one: the limit is
-                # per-key, so one thread hitting it means all of them are
-                # going too fast.
-                _widen_interval()
+                _record_nvidia_stat("http_429")
+            elif exc.code == 503:
+                _record_nvidia_stat("http_503")
+            if exc.code in _BACKPRESSURE_HTTP_CODES:
+                # Slow every worker down, not just this one: capacity is
+                # shared per-key (and, for 503, shared across tenants), so
+                # one thread seeing it means all of them are pushing too hard.
+                _nvidia_widen_interval()
             if exc.code not in _RETRYABLE_HTTP_CODES or attempt == _MAX_TRANSIENT_RETRIES:
+                _record_nvidia_stat("failures")
                 raise
+            _record_nvidia_stat("retries")
             time.sleep(_retry_delay(exc, attempt))
         else:
-            _narrow_interval()
+            _nvidia_narrow_interval()
+            _record_nvidia_stat("successes")
             return response
 
 
-def _gemini_generate(prompt: str, max_tokens: int) -> str:
-    """Calls Gemma via the hosted Gemini API, preferring the no-thinking
-    fast path and permanently falling back if this model rejects it."""
-    import urllib.error
-
-    global _GEMINI_MINIMAL_THINKING_SUPPORTED
-    try_minimal = _GEMINI_MINIMAL_THINKING_SUPPORTED is not False
-
-    try:
-        data = _gemini_post_with_retry(_gemini_payload(prompt, max_tokens, try_minimal))
-        if try_minimal:
-            _GEMINI_MINIMAL_THINKING_SUPPORTED = True
-    except urllib.error.HTTPError as exc:
-        # A 400 on the optimistic attempt means this model doesn't accept
-        # thinkingConfig -- remember that and never pay for the rejection
-        # again, then immediately retry the same prompt without it so the
-        # caller never sees a failure it didn't need to see.
-        if try_minimal and exc.code == 400:
-            _GEMINI_MINIMAL_THINKING_SUPPORTED = False
-            data = _gemini_post_with_retry(_gemini_payload(prompt, max_tokens, False))
-        else:
-            raise
-
-    # Skip any part marked "thought": true -- when thinking isn't
-    # suppressed, the model's internal scratchpad comes back as its own
-    # part alongside the real answer, and joining them would feed the
-    # scratchpad into the JSON parser.
-    parts = data["candidates"][0]["content"]["parts"]
-    answer = "".join(p.get("text", "") for p in parts if not p.get("thought"))
-    if not answer:
-        candidate = data["candidates"][0]
+def _nvidia_generate(prompt: str, max_tokens: int) -> str:
+    """Calls the configured Nemotron model via NVIDIA's hosted NIM API."""
+    data = _nvidia_post_with_retry(_nvidia_payload(prompt, max_tokens))
+    choice = data["choices"][0]
+    content = choice["message"].get("content") or ""
+    if not content:
         raise ValueError(
-            f"Gemini/Gemma response had no non-thought text (finishReason="
-            f"{candidate.get('finishReason')!r}, thoughtsTokenCount="
-            f"{data.get('usageMetadata', {}).get('thoughtsTokenCount')!r}); "
-            f"try a higher max_tokens"
+            f"NVIDIA NIM response had no content (finish_reason="
+            f"{choice.get('finish_reason')!r}); try a higher max_tokens"
         )
-    return answer
+    return content
 
 
 def _call_llm(prompt: str, max_tokens: int = 200) -> str:
@@ -249,8 +276,8 @@ def _call_llm(prompt: str, max_tokens: int = 200) -> str:
     raw response text. Raises on any failure -- every caller wraps this
     in a try/except and falls back to a safe deterministic default,
     exactly the same way regardless of provider."""
-    if settings.LLM_PROVIDER == "gemini":
-        return _gemini_generate(prompt, max_tokens)
+    if settings.LLM_PROVIDER == "nvidia":
+        return _nvidia_generate(prompt, max_tokens)
 
     import anthropic
 

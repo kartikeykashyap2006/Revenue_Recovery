@@ -14,7 +14,7 @@ razorpayproject/
 ├── backend/     Python — the engine, the API, the tests, the CLI tools
 │   ├── app/         detection → diagnosis → policy → AI agent → playbooks → confirmation
 │   ├── scripts/     run a batch, inspect the audit trail, metrics, offline dashboard
-│   └── tests/       76 tests
+│   └── tests/       81 tests
 ├── frontend/    TypeScript + React (Vite) — "Recoup", a multi-page dashboard
 │   └── src/         pages/ (Overview, Cases, Agent), layout/ (sidebar + top bar),
 │                     context/ (shared batch state), typed API client
@@ -114,7 +114,7 @@ switch parts on, copy the root `.env.example` to `.env`:
 | Setting | Effect |
 |---|---|
 | `USE_AI_RECOVERY_AGENT=true` | turns on the bounded AI decision layer |
-| `LLM_PROVIDER=gemini` + `GEMINI_API_KEY` | free Gemma via Google AI Studio |
+| `LLM_PROVIDER=nvidia` + `NVIDIA_API_KEY` | free Nemotron via NVIDIA NIM (~40 RPM free tier, no billing) |
 | `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` | Claude instead |
 | `USE_LIVE_RAZORPAY=true` + test keys | real test-mode payment links |
 | `AI_AGENT_MAX_CONCURRENCY` | agent calls issued in parallel (default 6) |

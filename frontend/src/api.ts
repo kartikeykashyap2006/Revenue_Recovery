@@ -66,3 +66,8 @@ export function runBatch(params: {
   if (params.simulateTime) query.set("simulate_time", params.simulateTime);
   return request<DashboardResponse>(`/api/run-batch?${query}`, { method: "POST" });
 }
+
+/** Clears the audit trail and accumulated state; returns the empty dashboard. */
+export function resetBatch(): Promise<DashboardResponse> {
+  return request<DashboardResponse>("/api/reset", { method: "POST" });
+}

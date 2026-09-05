@@ -77,10 +77,14 @@ pytest tests/ -v
 
 Set `USE_AI_RECOVERY_AGENT=true` in `.env`, plus either a valid
 `ANTHROPIC_API_KEY` (default, `LLM_PROVIDER=anthropic`, needs billing) or,
-to run for free, `LLM_PROVIDER=gemini` and a `GEMINI_API_KEY` from
-https://aistudio.google.com/apikey (no billing required). Both providers
-go through the same bounded prompt/response contract in `app/integrations/llm.py`
--- only which model answers changes.
+to run for free, `LLM_PROVIDER=nvidia` and a `NVIDIA_API_KEY` from
+https://build.nvidia.com. That runs a free Nemotron model via NVIDIA's
+hosted NIM API at roughly 40 requests/minute on the free tier (no billing
+required); its internal reasoning pass is explicitly disabled per request,
+since reasoning tokens otherwise dominate wall-clock time for a bounded
+few-way classification (a ~7x per-call speedup, measured). Both providers go
+through the same bounded prompt/response contract in
+`app/integrations/llm.py` -- only which model answers changes.
 This does not replace the deterministic diagnosis/policy engine -- rule-
 based diagnosis and every compliance guardrail (opt-outs, mandatory
 escalation, high-value thresholds, contact limits, cooldown, quiet hours)
@@ -147,7 +151,7 @@ uvicorn app.main:app --reload
 - `app/integrations/` — Razorpay client (mocked until `USE_LIVE_RAZORPAY=true`
   and keys are set), messaging channel, LLM-assisted diagnosis fallback and
   the AI recovery-decision agent (both opt-in, both degrade safely if
-  unconfigured or unreachable; Claude or free Gemma, see `LLM_PROVIDER`)
+  unconfigured or unreachable; Claude or free Nemotron, see `LLM_PROVIDER`)
 - `app/data/raw_events.py` — generates a raw, unlabeled Razorpay-style event
   stream (no signal category attached); `app/data/synthetic_generator.py` is
   now a thin wrapper that runs it through `app/engine/detection.py`

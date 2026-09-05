@@ -15,7 +15,41 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.data.synthetic_generator import generate_batch
 from app.engine.pipeline import process_batch
 from app.reporting.batch_report import generate_report, print_report, save_report
-from app.db import _DEFAULT_STATE, _save_state, _AUDIT_LOG_PATH, log_event
+from app.db import reset as reset_db, log_event
+from app.config import settings
+
+
+def _print_nvidia_diagnostics():
+    """When the AI agent ran against the NVIDIA free tier, a batch's wall-clock
+    time is almost entirely those network calls, and how slow they were is set
+    by shared-worker congestion (503 'worker full'), not by anything local. Show
+    the 503 rate and the interval the adaptive throttle settled on so a slow run
+    can be attributed to a busy window rather than guessed at."""
+    from app.integrations import llm
+
+    stats = llm.nvidia_throttle_stats()
+    attempts = stats["successes"] + stats["failures"] + stats["retries"]
+    if attempts == 0:
+        return
+    interval = llm.current_nvidia_request_interval()
+    floor = 60.0 / max(settings.NVIDIA_MAX_RPM, 1)
+    backpressure = stats["http_503"] + stats["http_429"]
+    print("\nNVIDIA throttle diagnostics (agent calls):")
+    print(
+        f"  outcomes: {stats['successes']} ok, "
+        f"{stats['failures']} fell back to deterministic default, "
+        f"{stats['retries']} retries"
+    )
+    print(
+        f"  backpressure: {stats['http_503']}x 503 (shared worker full), "
+        f"{stats['http_429']}x 429 "
+        f"-- {100 * backpressure / attempts:.0f}% of {attempts} attempts"
+    )
+    print(
+        f"  request interval: settled at {interval:.2f}s "
+        f"(floor {floor:.2f}s @ {settings.NVIDIA_MAX_RPM} RPM, ceiling 6.00s) "
+        f"-- higher = busier window = slower batch"
+    )
 
 
 def main():
@@ -41,8 +75,7 @@ def main():
         print(f"Simulating now_utc={simulated_now.isoformat()} for quiet-hours evaluation.\n")
 
     if args.reset:
-        _save_state({k: list(v) for k, v in _DEFAULT_STATE.items()})
-        open(_AUDIT_LOG_PATH, "w").close()
+        reset_db()
         print("Reset audit trail and contact history for a fresh run.\n")
 
     signals = generate_batch(n=args.n, seed=args.seed, now_utc=simulated_now)
@@ -56,10 +89,17 @@ def main():
         "raw_cases": args.n, "signals_detected": len(signals),
         "resolved_on_their_own": args.n - len(signals),
     })
+    nvidia_agent_run = settings.LLM_PROVIDER == "nvidia" and settings.USE_AI_RECOVERY_AGENT
+    if nvidia_agent_run:
+        from app.integrations import llm
+        llm.reset_nvidia_throttle_stats()
+
     traces = process_batch(signals, now_utc=simulated_now)
     report = generate_report(traces)
 
     print_report(report)
+    if nvidia_agent_run:
+        _print_nvidia_diagnostics()
     save_report(report)
 
     if args.save_traces:

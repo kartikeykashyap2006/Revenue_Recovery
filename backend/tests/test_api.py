@@ -24,3 +24,16 @@ def test_malformed_simulate_time_is_a_clean_400_not_an_unhandled_500():
     response = client.post("/api/run-batch", params={"n": 3, "simulate_time": "not-a-date"})
     assert response.status_code == 400
     assert "not-a-date" in response.json()["detail"]
+
+
+def test_reset_clears_a_populated_dashboard_back_to_empty():
+    populated = client.post("/api/run-batch", params={"n": 10, "seed": 1}).json()
+    assert populated["empty"] is False  # a batch ran, there's something to show
+
+    after = client.post("/api/reset").json()
+    assert after["empty"] is True  # reset wiped it back to a blank slate
+
+    # And a fresh run after reset reports only its own numbers, not the sum
+    # of everything before it -- the whole reason the button exists.
+    fresh = client.post("/api/run-batch", params={"n": 15, "seed": 2}).json()
+    assert fresh["detection"]["raw_cases"] == 15

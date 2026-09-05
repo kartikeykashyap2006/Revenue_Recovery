@@ -23,7 +23,7 @@ def isolated_state(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "RAZORPAY_KEY_ID", "", raising=False)
     monkeypatch.setattr(settings, "RAZORPAY_KEY_SECRET", "", raising=False)
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "", raising=False)
-    monkeypatch.setattr(settings, "GEMINI_API_KEY", "", raising=False)
+    monkeypatch.setattr(settings, "NVIDIA_API_KEY", "", raising=False)
     monkeypatch.setattr(settings, "LLM_PROVIDER", "anthropic", raising=False)
     monkeypatch.setattr(settings, "USE_LLM_DIAGNOSIS", False, raising=False)
     monkeypatch.setattr(settings, "USE_AI_RECOVERY_AGENT", False, raising=False)

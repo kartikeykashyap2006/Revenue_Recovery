@@ -187,22 +187,24 @@ Signal by hand.
 
 Measured, not guessed: the entire deterministic pipeline -- detection,
 diagnosis, policy, playbooks, confirmation, and all JSON state I/O --
-processes 30 signals in **~0.25 seconds**. A single AI agent consultation
-takes **~5.4 seconds**, because Gemma-4 runs an internal "thinking" pass
-before answering (measured at 169 thinking tokens to produce a 21-token
-answer -- ~89% of everything generated). Issued one at a time, that turned
-a 30-signal batch into minutes of waiting while the rest of the system sat
-idle.
+processes 30 signals in **~0.25 seconds**. The AI agent is the entire other
+cost. The Nemotron model is a reasoning variant: left to its default it runs
+an internal "thinking" pass before answering, and for a bounded few-way
+classification most of the generated tokens are that scratchpad rather than
+the answer. Since generation is sequential, that pass dominates wall-clock
+time -- measured directly, a single call took **~6.4s** with thinking on
+versus **~0.9s** with it off, a ~7x difference. Issued one at a time, the
+thinking-on path turned a large batch into minutes of waiting while the rest
+of the system sat idle.
 
 Two changes address it, both in a way that cannot weaken a guardrail:
 
 1. **Suppress the thinking pass** (`app/integrations/llm.py`). The request
-   asks for `thinkingConfig.thinkingLevel: MINIMAL`. Gemma's thinking
-   controls are unreliable (`thinkingBudget` is rejected outright;
-   `includeThoughts` is silently ignored), so this is attempted
-   optimistically and, on a 400, permanently abandoned for the rest of the
-   run and immediately retried without it -- the caller never sees a
-   failure it didn't need to see.
+   sends `chat_template_kwargs.enable_thinking: false`, which NVIDIA's NIM
+   API honors, so every consultation returns just the bounded answer with
+   no scratchpad. (This has to sit at the top level of the request body --
+   `extra_body` is an OpenAI-SDK client convenience, not a real API field,
+   and sending it literally is a 400.)
 2. **Issue consultations concurrently, ahead of the loop**
    (`pipeline.prefetch_agent_recommendations`). The pipeline itself stays
    strictly sequential, deliberately: the guardrails are order-dependent

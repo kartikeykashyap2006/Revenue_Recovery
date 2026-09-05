@@ -51,6 +51,17 @@ def init_db() -> None:
         open(_AUDIT_LOG_PATH, "a").close()
 
 
+def reset() -> None:
+    """Clears the audit trail and all stateful history back to empty -- the
+    one definition of "fresh run" that both scripts/run_batch.py's --reset
+    and the API's /api/reset call, so the two can't drift on what reset
+    means. Truncates the audit log and rewrites state.json to defaults;
+    leaves opt-outs cleared too, matching --reset's long-standing
+    behaviour (a fresh demo starts with nobody opted out)."""
+    _save_state({k: list(v) for k, v in _DEFAULT_STATE.items()})
+    open(_AUDIT_LOG_PATH, "w").close()
+
+
 def log_event(signal_id: str, stage: str, payload: Dict[str, Any]) -> None:
     entry = {
         "signal_id": signal_id,

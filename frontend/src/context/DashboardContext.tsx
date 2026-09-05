@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { fetchConfig, fetchDashboard, runBatch } from "../api";
+import { fetchConfig, fetchDashboard, resetBatch, runBatch } from "../api";
 import type { Dashboard, DashboardResponse, RunConfig } from "../types";
 
 const DEFAULT_SIMULATE_TIME = "2026-08-31T10:00";
@@ -22,6 +22,7 @@ interface Ctx {
   showControls: boolean;
   setShowControls: (fn: boolean | ((v: boolean) => boolean)) => void;
   runNow: () => Promise<void>;
+  resetNow: () => Promise<void>;
 }
 
 const DashboardCtx = createContext<Ctx | null>(null);
@@ -72,6 +73,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     }
   }, [size, seed, simulateTime]);
 
+  const resetNow = useCallback(async () => {
+    setBusy(true);
+    try {
+      setError(null);
+      setData(await resetBatch());
+    } catch (e) {
+      setError(e as Error);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
   const ready = data && !data.empty ? data : null;
 
   return (
@@ -91,6 +104,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         showControls,
         setShowControls,
         runNow,
+        resetNow,
       }}
     >
       {children}

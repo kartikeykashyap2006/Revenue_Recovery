@@ -32,8 +32,8 @@ def _context(playbook="payment_retry", customer_id="c1"):
 
 def _enable(monkeypatch, captured):
     monkeypatch.setattr(settings, "USE_AI_RECOVERY_AGENT", True, raising=False)
-    monkeypatch.setattr(settings, "LLM_PROVIDER", "gemini", raising=False)
-    monkeypatch.setattr(settings, "GEMINI_API_KEY", "test-key", raising=False)
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "nvidia", raising=False)
+    monkeypatch.setattr(settings, "NVIDIA_API_KEY", "test-key", raising=False)
 
     def _fake_call(prompt, max_tokens=200):
         captured.append(prompt)

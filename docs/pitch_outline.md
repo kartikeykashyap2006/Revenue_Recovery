@@ -120,9 +120,9 @@ concrete on screen.
 
 Set `USE_AI_RECOVERY_AGENT=true` before recording, with either
 `ANTHROPIC_API_KEY` set (default, `LLM_PROVIDER=anthropic`, needs
-billing) or `LLM_PROVIDER=gemini` plus a free `GEMINI_API_KEY` from
-https://aistudio.google.com/apikey -- same prompts, same bounded action
-set, either way (`app/integrations/llm.py`). This is the direct answer to
+billing) or `LLM_PROVIDER=nvidia` plus a free `NVIDIA_API_KEY` from
+https://build.nvidia.com -- same prompts, same bounded action set, either
+way (`app/integrations/llm.py`). This is the direct answer to
 "is an LLM actually deciding anything, or is this all if/else": for every
 signal that clears the deterministic policy engine's guardrails and is
 about to proceed with its assigned playbook, the model gets one narrow,
@@ -170,8 +170,8 @@ plus test-mode keys to switch to real payment links — same code path
 either way), a separate confirmation stage
 (`app/engine/confirmation.py`) that a real Razorpay webhook can drive
 instead of the simulated demo path, an AI recovery-decision agent
-(`app/engine/agent.py`, Claude or free Gemma) that can only add caution
-downstream of the deterministic policy engine, and 75 passing tests
+(`app/engine/agent.py`, Claude or free Nemotron) that can only add caution
+downstream of the deterministic policy engine, and 81 passing tests
 covering signal detection, diagnosis rules, policy guardrails, playbook
 mechanics, the confirmation step, the AI agent's bounded behavior,
 deferral, promise-to-pay, the API's own batch-detection bookkeeping, and

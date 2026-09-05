@@ -20,6 +20,7 @@ export function TopBar({ title, subtitle }: Props) {
     showControls,
     setShowControls,
     runNow,
+    resetNow,
   } = useDashboard();
 
   return (
@@ -82,6 +83,16 @@ export function TopBar({ title, subtitle }: Props) {
             Reproduces a specific run (same seed) at a specific clock time -- e.g. to demo cooldown or
             promise-to-pay follow-up, run once, note the seed, then run again with a later time.
           </span>
+          <div className="run-options-reset">
+            <button type="button" className="ghost-btn danger" onClick={resetNow} disabled={busy}>
+              Clear all data
+            </button>
+            <span className="note run-options-note">
+              Wipes the audit trail and accumulated state (contact history, pending recoveries) back to
+              empty. Each "Run batch" appends rather than replaces, so a long session piles up state --
+              this is the blank slate.
+            </span>
+          </div>
         </div>
       )}
     </header>
