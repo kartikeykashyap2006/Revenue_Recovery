@@ -187,5 +187,4 @@ UI) that can never disagree about a number.
 No auth on the API and no locking on the JSON state store -- both fine at
 demo scale, both real work before this touches production traffic; richer
 detection rules (e.g. distinguishing a slow retry from an abandoned one by
-elapsed time, not just event presence); automated tests for the frontend to
-match the backend's 74.
+elapsed time, not just event presence).

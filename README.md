@@ -17,7 +17,7 @@ razorpayproject/
 │   └── tests/       81 tests
 ├── frontend/    TypeScript + React (Vite) — "Recoup", a multi-page dashboard
 │   └── src/         pages/ (Overview, Cases, Agent), layout/ (sidebar + top bar),
-│                     context/ (shared batch state), typed API client
+│                     context/ (shared batch state), typed API client, 42 tests
 └── docs/        architecture writeup and pitch outline
 ```
 
@@ -79,6 +79,15 @@ pytest tests/ -v
 `build_dashboard.py` renders from the *same* payload function the API serves,
 so the offline file and the React app can never disagree about a run — useful
 when the venue wifi isn't.
+
+The frontend has its own suite (Vitest + React Testing Library) covering the
+case-list filter/pagination logic, the API client's error handling (a dead
+backend vs. a real 4xx), and the run/reset state machine:
+
+```bash
+cd frontend
+npm test
+```
 
 ## What it does, in order
 
