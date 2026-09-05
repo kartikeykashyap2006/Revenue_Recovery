@@ -60,7 +60,7 @@ export function TopBar({ title, subtitle }: Props) {
             max={200}
             value={size}
             aria-label="batch size"
-            onChange={(e) => setSize(Number(e.target.value))}
+            onChange={(e) => setSize(e.target.value)}
           />
           <button className="action" onClick={runNow} disabled={busy}>
             {!busy && <IconPlay className="btn-icon" />}

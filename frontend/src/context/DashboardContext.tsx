@@ -13,8 +13,12 @@ interface Ctx {
   config: RunConfig | null;
   error: Error | null;
   busy: boolean;
-  size: number;
-  setSize: (n: number) => void;
+  /** Kept as the raw typed string, like `seed` -- a plain number state would
+   *  force every keystroke through Number(), and Number("") is 0, not empty,
+   *  so clearing the field to type a new value re-renders a phantom "0" you
+   *  end up typing after instead of into an empty box. */
+  size: string;
+  setSize: (n: string) => void;
   seed: string;
   setSeed: (s: string) => void;
   simulateTime: string;
@@ -32,7 +36,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<RunConfig | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [busy, setBusy] = useState(false);
-  const [size, setSize] = useState(25);
+  const [size, setSize] = useState("25");
   const [seed, setSeed] = useState("");
   const [simulateTime, setSimulateTime] = useState(DEFAULT_SIMULATE_TIME);
   const [showControls, setShowControls] = useState(false);
@@ -61,7 +65,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       // their trigger on `busy` rather than letting a second run pile on.
       setData(
         await runBatch({
-          n: size,
+          n: size.trim() === "" ? 25 : Number(size),
           seed: seed.trim() === "" ? undefined : Number(seed),
           simulateTime: simulateTime || undefined,
         }),
