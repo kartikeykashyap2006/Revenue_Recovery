@@ -197,7 +197,7 @@ versus **~0.9s** with it off, a ~7x difference. Issued one at a time, the
 thinking-on path turned a large batch into minutes of waiting while the rest
 of the system sat idle.
 
-Two changes address it, both in a way that cannot weaken a guardrail:
+Three changes address it, all in a way that cannot weaken a guardrail:
 
 1. **Suppress the thinking pass** (`app/integrations/llm.py`). The request
    sends `chat_template_kwargs.enable_thinking: false`, which NVIDIA's NIM
@@ -223,6 +223,27 @@ context of the real decision. Anything stale is discarded and re-fetched
 inline. Measured effect with a stubbed model at concurrency 6: 18
 consultations, zero duplicate calls, 5.8x faster wall-clock than
 sequential.
+
+3. **Pace requests to what the shared inference worker can actually take**
+   (`app/integrations/llm.py`'s adaptive throttle). NVIDIA's free-tier NIM
+   worker is shared across tenants, and it does **not** signal "I'm full"
+   with HTTP 429 -- it returns `503 {"error": {"message": "ResourceExhausted:
+   Worker local total request limit reached (16/16)"}}`. The throttle
+   originally only treated 429 as backpressure; on a real batch, 13 of 37
+   calls came back 503 while only 3 were ever 429, so the client stayed
+   blind to the actual congestion signal and kept retrying straight into the
+   same full worker. Because a retry re-enters the throttle, every wasted
+   attempt burned a full interval slot *and* a backoff sleep -- effective
+   throughput is `configured rate * success rate`, so a 65% success rate
+   turned a 40 RPM pace into ~26 RPM. Fix: 503 now widens the interval the
+   same way 429 does. The strategy is discover-and-back-off, not pace-at-a-
+   fixed-rate -- start near the fastest cadence `NVIDIA_MAX_RPM` allows
+   (default 60, deliberately above NVIDIA's advertised ~40, to exploit an
+   uncongested window rather than leave headroom on the table), and let the
+   429/503 backpressure pull it back down when the worker actually is busy.
+   A CLI batch run prints the settled interval and the 429/503 counts after
+   every run (`scripts/run_batch.py`'s `_print_nvidia_diagnostics`), so a
+   slow run is attributable to a busy shared worker instead of guessed at.
 
 ## What the agent decides, and what it can never decide
 

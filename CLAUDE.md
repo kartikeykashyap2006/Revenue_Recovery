@@ -3,8 +3,9 @@
 Razorpay Buildathon Track 03. Detects revenue at risk, diagnoses it, picks a
 bounded recovery action, executes it, and proves what money actually came back.
 
-`backend/` is Python (engine, FastAPI, CLI, 74 tests). `frontend/` is
-TypeScript + React (Vite). They share only an HTTP contract.
+`backend/` is Python (engine, FastAPI, CLI, 81 tests). `frontend/` is
+TypeScript + React (Vite) — a named product, "Recoup", with its own 42-test
+Vitest suite. They share only an HTTP contract.
 
 ## Running things
 
@@ -17,6 +18,8 @@ pytest tests/ -q
 python scripts/run_batch.py --reset --n 25 --seed 7 --simulate-time 2026-08-31T10:00:00
 python scripts/system_metrics.py
 python scripts/build_dashboard.py --open        # offline HTML, same data as the UI
+
+cd frontend && npm test                         # Vitest + RTL, 42 tests
 ```
 
 State lives beside the code it belongs to: `backend/audit_log.jsonl` and
@@ -52,6 +55,13 @@ does unlocked read-modify-write. Model calls are made concurrent by
 *prefetching* them (`pipeline.prefetch_agent_recommendations`) and reusing them
 behind a context fingerprint — never by parallelising the pipeline itself.
 
+**NVIDIA NIM signals congestion with 503, not 429.** The shared free-tier
+worker returns `503 ResourceExhausted` when it's full; treating only 429 as
+backpressure let the adaptive throttle retry straight back into a saturated
+worker, measured turning a 40 RPM pace into ~26 RPM effective. Both codes
+must widen `llm.py`'s request interval. If you touch the NVIDIA retry path,
+keep them together.
+
 **Never record something nothing acts on.** Deferrals and promises-to-pay were
 both once written and never read. If you persist an intention, also build the
 path that resolves it, or don't persist it.
@@ -80,7 +90,8 @@ discovering under questioning:
 - `app/db.py` does unlocked read-modify-write on a JSON file. Two concurrent
   webhooks can lose a write. Single-process batches are unaffected.
 - No auth on the API. `/api/run-batch` burns quota; `/audit-log` returns
-  customer names, phones and emails.
+  customer names, phones and emails; `/api/reset` wipes the audit trail and
+  all accumulated state for anyone who can reach it.
 - Every `db` call re-reads and rewrites the whole state file — fine at demo
   size, quadratic beyond it.
 - Contact details are written to the audit log in plaintext.
